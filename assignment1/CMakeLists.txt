@@ -1,6 +1,6 @@
 # CMake Build Configuration for root of project
 cmake_minimum_required(VERSION 3.18)
-project(my_hello_world VERSION 1.0 DESCRIPTION "Starter project" LANGUAGES C)
+project(assignment1 VERSION 1.0 DESCRIPTION "Starter project" LANGUAGES C)
 
 # Compiler options (inherited by sub-folders)
 set(CMAKE_C_STANDARD 11)

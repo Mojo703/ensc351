@@ -15,7 +15,7 @@ BuiltinLEDResult builtin_led_init(BuiltinLED led, int* fd_out) {
 
     int fd = open(path, O_WRONLY);
     if (fd < 0) {
-        perror("Could not open builtin LED peripheral.");
+        perror("Could not open builtin LED peripheral");
         return BUILTIN_LED_ERROR_OPEN;
     }
 
@@ -29,7 +29,7 @@ BuiltinLEDResult builtin_led_set_brightness(int fd, int brightness) {
     int len = snprintf(buf, sizeof(buf), "%d", brightness);
 
     if (write(fd, buf, len) != len) {
-        perror("Could not write to builtin LED peripheral.");
+        perror("Could not write to builtin LED peripheral");
         return BUILTIN_LED_ERROR_WRITE;
     }
 

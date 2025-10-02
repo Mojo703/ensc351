@@ -24,8 +24,8 @@ typedef enum {
     MCP320x_CH7 = 0x111,
 } MCP3204Channel;
 
-/// @brief Create a reference to the peripheral.
-/// @return 
+/// @brief Create a reference to the peripheral. `fd` exists iff result is OK.
+/// @return result.
 MCP3204Result mcp3204_init(int* fd_out);
 
 /// @brief Get the 12 bit value for a specific channel.
@@ -35,8 +35,8 @@ MCP3204Result mcp3204_init(int* fd_out);
 /// @return result.
 MCP3204Result mcp320x_get(int fd, MCP3204Channel channel, int* value_out);
 
-/// @brief 
-/// @param fd 
+/// @brief Clean up the peripheral reference.
+/// @param fd
 /// @return 
 MCP3204Result mcp3204_cleanup(int fd);
 

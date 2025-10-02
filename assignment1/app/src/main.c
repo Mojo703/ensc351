@@ -3,55 +3,23 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-#include "badmath.h"
-#include "hal/button.h"
-
-void foo() {
-    int data[3];    
-    for (int i = 0; i <= 3; i++) {
-        data[i] = 10;
-        printf("Value: %d\n", data[i]);
-    }
-}
+#include "hal/builtin_led.h"
+#include "hal/mcp320x.h"
 
 int main()
 {
-    printf("Hello world!\n");
+    // Init the HAL
+    int led_r;
+    int led_g;
+    if (builtin_led_init(BUILTIN_LED_RED, &led_r) != BUILTIN_LED_OK) return -1;
+    if (builtin_led_init(BUILTIN_LED_GREEN, &led_g) != BUILTIN_LED_OK) return -1;
 
-    // Initialize all modules; HAL modules first
-    button_init();
-    badmath_init();
+    int adc;
+    if (mcp3204_init(&adc) != MCP320x_OK) return -1;
 
-    // Main program logic:
-    for (int i = 0; i < 10; i++) {
-        printf("  -> Reading button time %d = %d\n", i, button_is_button_pressed());
-    }
 
-    for (int i = 0; i <= 35; i++) {
-        int ans = badmath_factorial(i);
-        printf("%4d! = %6d\n", i, ans);
-    }
-
-    // Cleanup all modules (HAL modules last)
-    badmath_cleanup();
-    button_cleanup();
-
-    printf("!!! DONE !!!\n"); 
-
-    // Some bad code to try out and see what shows up.
-    #if 0
-        // Test your linting setup
-        //   - You should see a warning underline in VS Code
-        //   - You should see compile-time errors when building (-Wall -Werror)
-        // (Linting using clang-tidy; see )
-        int x = 0;
-        if (x = 10) {
-        }
-    #endif
-    #if 1
-        // Demonstrate -fsanitize=address (enabled in the root CMakeFiles.txt)
-        // Compile and run this code. Should see warning at compile time; error at runtime.
-        foo();
-
-    #endif
+    // Cleanup the HAL
+    builtin_led_cleanup(led_r);
+    builtin_led_cleanup(led_g);
+    mcp3204_cleanup(adc);
 }

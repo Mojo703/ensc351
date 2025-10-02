@@ -10,7 +10,7 @@
 MCP3204Result mcp3204_init(int* fd_out) {
     int fd = open(MCP320x_PATH, O_RDWR);
     if (fd < 0) {
-        perror("Can't open SPI");
+        perror("Could not open SPI");
         return MCP320x_SPI_ERROR;
     }
 
@@ -21,7 +21,7 @@ MCP3204Result mcp3204_init(int* fd_out) {
 
 MCP3204Result mcp3204_cleanup(int fd) {
     if (close(fd) < 0) {
-        perror("Can't close SPI");
+        perror("Could not close SPI");
         return MCP320x_SPI_ERROR;
     }
 
@@ -34,11 +34,6 @@ MCP3204Result mcp3204_get(int fd, MCP3204Channel channel, uint16_t* value_out) {
     uint8_t tx[] = { tx_0 };
     uint8_t rx[2] = { 0x0, 0x0 };
 
-    if (fd < 0) {
-        perror("open");
-        return MCP320x_SPI_ERROR;
-    }
-
     struct spi_ioc_transfer tr = {
         .tx_buf = *tx,
         .rx_buf = *rx,
@@ -48,12 +43,8 @@ MCP3204Result mcp3204_get(int fd, MCP3204Channel channel, uint16_t* value_out) {
         .delay_usecs = 0,
     };
 
-    int io_res = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
-
-    close(fd);
-
-    if (io_res < 1) {
-        perror("Can't send spi message");
+    if (ioctl(fd, SPI_IOC_MESSAGE(1), &tr) < 0) {
+        perror("Could not send spi message");
         return MCP320x_SPI_ERROR;
     }
 
