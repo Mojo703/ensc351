@@ -8,7 +8,7 @@
 typedef enum {
     MCP3204_SPI_ERROR = -1,
     MCP3204_OK = 0,
-} MCP3204Result
+} MCP3204Result;
 
 // void mcp3204_init(void);
 MCP3204Result mcp3204_get(int*);

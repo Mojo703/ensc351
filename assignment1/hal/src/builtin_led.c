@@ -1,5 +1,7 @@
 #include "hal/builtin_led.h"
 #include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 BuiltinLEDResult builtin_led_set_brightness(BuiltinLED led, int brightness) {
     char* path;

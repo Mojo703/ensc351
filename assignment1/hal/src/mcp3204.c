@@ -1,5 +1,11 @@
 #include "hal/mcp3204.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/spi/spidev.h>
 
 
 MCP3204Result mcp3204_get(int* value) {
@@ -14,15 +20,19 @@ MCP3204Result mcp3204_get(int* value) {
     }
 
     struct spi_ioc_transfer tr = {
-        .tx_buf = tx,
-        .rx_buf = rx,
+        .tx_buf = *tx,
+        .rx_buf = *rx,
         .len = sizeof(tx) + sizeof(rx),
         .speed_hz = MCP3204_SPI_FREQUENCY,
         .bits_per_word = MCP3204_BITS_PER_WORD,
         .delay_usecs = 0,
     };
 
-    if (ioctl(fd, SPI_IOC_MESSAGE(1), &tr) < 1) {
+    int io_res = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
+
+    close(fd);
+
+    if (io_res < 1) {
         perror("Can't send spi message");
         return MCP3204_SPI_ERROR;
     }
