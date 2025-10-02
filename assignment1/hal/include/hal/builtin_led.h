@@ -11,13 +11,14 @@ typedef enum {
 } BuiltinLED;
 
 typedef enum {
-    BUILTIN_LED_ERROR_OPEN = -2,
+    BUILTIN_LED_ERROR_OPEN = -3,
+    BUILTIN_LED_ERROR_CLOSE = -2,
     BUILTIN_LED_ERROR_WRITE = -1,
     BUILTIN_LED_OK = 0
 } BuiltinLEDResult;
 
-// void builtin_led_init();
-BuiltinLEDResult builtin_led_set_brightness(BuiltinLED, int);
-// void builtin_led_cleanup();
+BuiltinLEDResult builtin_led_init(BuiltinLED led, int* fd_out);
+BuiltinLEDResult builtin_led_set_brightness(int fd, int brightness);
+BuiltinLEDResult builtin_led_cleanup(int fd);
 
 #endif

@@ -2,6 +2,7 @@
     "C_Cpp.codeAnalysis.clangTidy.enabled": true,
     "files.associations": {
         "stdio.h": "c",
-        "mcp320x.h": "c"
+        "mcp320x.h": "c",
+        "builtin_led.h": "c"
     }
 }
