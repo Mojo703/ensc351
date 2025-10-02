@@ -13,7 +13,7 @@ typedef enum {
 typedef enum {
     BUILTIN_LED_ERROR_OPEN = -2,
     BUILTIN_LED_ERROR_WRITE = -1,
-    BUILTIN_LED_OK = 0;
+    BUILTIN_LED_OK = 0
 } BuiltinLEDResult;
 
 // void builtin_led_init();
