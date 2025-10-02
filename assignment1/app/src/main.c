@@ -82,25 +82,82 @@ int msleep(long msec)
     return res;
 }
 
-int main()
-{
-    // Init the HAL
-    int led_r;
-    int led_g;
-    if (builtin_led_init(BUILTIN_LED_RED, &led_r) != BUILTIN_LED_OK) return -1;
-    if (builtin_led_init(BUILTIN_LED_GREEN, &led_g) != BUILTIN_LED_OK) return -1;
 
-    int adc;
-    if (mcp320x_init(&adc) != MCP320x_OK) return -1;
-
-    // Init the Pseudo random numbers
-    srand(time(NULL));
-
-    time_t best_time = -1;
+/// @brief Run the reaction time loop.
+/// @param adc 
+/// @param led_g 
+/// @param led_r 
+/// @param best_time A reference to the best reaction time so far.
+/// @return `true` if the game should continue. `false` if the user chose to quit.
+bool time_reaction(int adc, int led_g, int led_r, long* best_time) {
+    // Pick the random target
+    enum JoystickState target;
+    if (rand() % 2 == 0){
+        target = JOYSTICK_UP;
+        printf("Press UP!");
+        builtin_led_set_brightness(led_g, 1);
+    } else {
+        target = JOYSTICK_DOWN;
+        printf("Press DOWN!");
+        builtin_led_set_brightness(led_r, 1);
+    }
     
-    // Start the game
+    // Start the reaction time loop.
+    time_t start_time = time(NULL);
+    while (true) {
+        enum JoystickState current = get_joystick(adc);
+
+        time_t reaction_time = time(NULL) - start_time;
+        
+        if (current == JOYSTICK_CENTER) continue;
+        
+        // Handle more than 5 secods delay, or left and right joysticks.
+        if (reaction_time > TIMEOUT_MS || current == JOYSTICK_LEFT || current == JOYSTICK_RIGHT) {
+            printf("User selected to quit.");
+            return false;
+        }
+
+        if (current == target) {
+            printf("Correct!\n  Your reaction time was %ldms. ", reaction_time);
+
+            if (*best_time == -1 || reaction_time < *best_time) {
+                printf("You have set a new best time.\n");
+                *best_time = reaction_time;
+            } else {
+                printf("Best so far was %ldms.\n", *best_time);
+            }
+
+            // Flash the green LED
+            for (int j = 0; j < 5; j ++) {
+                builtin_led_set_brightness(led_g, 1);
+                msleep(100);
+                builtin_led_set_brightness(led_g, 0);
+                msleep(100);
+            }
+        } else {
+            printf("Incorrect.\n");
+
+            // Flash the red LED
+            for (int j = 0; j < 5; j ++) {
+                builtin_led_set_brightness(led_r, 1);
+                msleep(100);
+                builtin_led_set_brightness(led_r, 0);
+                msleep(100);
+            }
+        }
+ 
+        return true;
+    }
+}
+
+/// @brief The game loop.
+/// @param adc 
+/// @param led_g 
+/// @param led_r 
+void game(int adc, int led_g, int led_r) {
     printf(WELCOME_MESSAGE);
 
+    time_t best_time = -1;
     bool game_running = true;
     while (game_running) {
         printf("Get Ready...\n");
@@ -130,63 +187,26 @@ int main()
             continue;
         }
 
-        // Pick the random target
-        enum JoystickState target;
-        if (rand() % 2 == 0){
-            target = JOYSTICK_UP;
-            printf("Press UP!");
-            builtin_led_set_brightness(led_g, 1);
-        } else {
-            target = JOYSTICK_DOWN;
-            printf("Press DOWN!");
-            builtin_led_set_brightness(led_r, 1);
-        }
-
-        // Start the reaction time loop.
-        time_t start_time = time(NULL);
-        while (true) {
-            enum JoystickState current = get_joystick(adc);
-
-            time_t reaction_time = time(NULL) - start_time;
-            
-            if (current == JOYSTICK_CENTER) continue;
-            
-            // Handle more than 5 secods delay, or left and right joysticks.
-            if (reaction_time > TIMEOUT_MS || current == JOYSTICK_LEFT || current == JOYSTICK_RIGHT) {
-                printf("User selected to quit.");
-                game_running = false;
-                break;
-            }
-
-            if (current == target) {
-                printf("Correct!\n  Your reaction time was %ldms. ", reaction_time);
-
-                if (best_time == -1 || reaction_time < best_time) {
-                    printf("You have set a new best time.\n");
-                } else {
-                    printf("Best so far was %ldms.\n", best_time);
-                }
-
-                // Flash the green LED
-                for (int j = 0; j < 5; j ++) {
-                    builtin_led_set_brightness(led_g, 1);
-                    msleep(100);
-                    builtin_led_set_brightness(led_g, 0);
-                    msleep(100);
-                }
-            } else {
-                printf("Incorrect.\n");
-
-                // Flash the red LED
-                for (int j = 0; j < 5; j ++) {
-                    builtin_led_set_brightness(led_r, 1);
-                    msleep(100);
-                    builtin_led_set_brightness(led_r, 0);
-                    msleep(100);
-                }
-            }
-        }
+        game_running = time_reaction(adc, led_g, led_r, &best_time);
     }
+}
+
+int main()
+{
+    // Init the HAL
+    int led_r;
+    int led_g;
+    if (builtin_led_init(BUILTIN_LED_RED, &led_r) != BUILTIN_LED_OK) return -1;
+    if (builtin_led_init(BUILTIN_LED_GREEN, &led_g) != BUILTIN_LED_OK) return -1;
+
+    int adc;
+    if (mcp320x_init(&adc) != MCP320x_OK) return -1;
+
+    // Init the Pseudo random numbers
+    srand(time(NULL));
+    
+    // Start the game
+    game(adc, led_g, led_r);
 
     // Set the LEDs to Off
     builtin_led_set_brightness(led_r, 0);
