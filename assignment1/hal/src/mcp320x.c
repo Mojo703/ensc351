@@ -7,7 +7,7 @@
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 
-MCP3204Result mcp3204_init(int* fd_out) {
+MCP320xResult mcp320x_init(int* fd_out) {
     int fd = open(MCP320x_PATH, O_RDWR);
     if (fd < 0) {
         perror("Could not open SPI");
@@ -19,7 +19,7 @@ MCP3204Result mcp3204_init(int* fd_out) {
     return MCP320x_OK;
 }
 
-MCP3204Result mcp3204_cleanup(int fd) {
+MCP320xResult mcp320x_cleanup(int fd) {
     if (close(fd) < 0) {
         perror("Could not close SPI");
         return MCP320x_SPI_ERROR;
@@ -28,7 +28,7 @@ MCP3204Result mcp3204_cleanup(int fd) {
     return MCP320x_OK;
 }
 
-MCP3204Result mcp3204_get(int fd, MCP3204Channel channel, uint16_t* value_out) {
+MCP320xResult mcp320x_get(int fd, MCP320xChannel channel, u_int16_t* value_out) {
     uint8_t tx_0 = (0x1 << 7 | 0x1 << 6) | channel << 3; // { START[0], SINGLE/DIFF[0], CHANNEL[2, 1, 0] }
 
     uint8_t tx[] = { tx_0 };
