@@ -112,7 +112,11 @@ bool time_reaction(int adc, int led_g, int led_r, long* best_time) {
         if (current == JOYSTICK_CENTER) continue;
         
         // Handle more than 5 secods delay, or left and right joysticks.
-        if (reaction_time > TIMEOUT_MS || current == JOYSTICK_LEFT || current == JOYSTICK_RIGHT) {
+        if (reaction_time > TIMEOUT_MS) {
+            printf("No reaction within 5000ms; quitting!");
+            return false;
+        }
+        if (current == JOYSTICK_LEFT || current == JOYSTICK_RIGHT) {
             printf("User selected to quit.");
             return false;
         }
