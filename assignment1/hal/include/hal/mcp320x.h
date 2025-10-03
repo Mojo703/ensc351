@@ -16,15 +16,15 @@ typedef enum
 typedef enum
 {
     // MCP3204 and MCP3208
-    MCP320x_CH0 = 0x000,
-    MCP320x_CH1 = 0x001,
-    MCP320x_CH2 = 0x010,
-    MCP320x_CH3 = 0x011,
+    MCP320x_CH0 = 0b000,
+    MCP320x_CH1 = 0b001,
+    MCP320x_CH2 = 0b010,
+    MCP320x_CH3 = 0b011,
     // MCP3208
-    MCP320x_CH4 = 0x100,
-    MCP320x_CH5 = 0x101,
-    MCP320x_CH6 = 0x110,
-    MCP320x_CH7 = 0x111,
+    MCP320x_CH4 = 0b100,
+    MCP320x_CH5 = 0b101,
+    MCP320x_CH6 = 0b110,
+    MCP320x_CH7 = 0b111,
 } MCP320xChannel;
 
 /// @brief Create a reference to the peripheral. `fd` exists iff result is OK.
