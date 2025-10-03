@@ -5,12 +5,16 @@
 #define MCP320x_SPI_FREQUENCY 1000000
 #define MCP320x_BITS_PER_WORD 8
 
-typedef enum {
+#define MCP320x_TRANSMIT_LENGTH 3
+
+typedef enum
+{
     MCP320x_SPI_ERROR = -1,
     MCP320x_OK = 0,
 } MCP320xResult;
 
-typedef enum {
+typedef enum
+{
     // MCP3204 and MCP3208
     MCP320x_CH0 = 0x000,
     MCP320x_CH1 = 0x001,
@@ -25,18 +29,18 @@ typedef enum {
 
 /// @brief Create a reference to the peripheral. `fd` exists iff result is OK.
 /// @return result.
-MCP320xResult mcp320x_init(int* fd_out);
+MCP320xResult mcp320x_init(int *fd_out);
 
 /// @brief Get the 12 bit value for a specific channel.
 /// @param fd the reference to the peripheral.
 /// @param channel The channel index (0 upto 7 for MCP3208).
 /// @param value_out The place to put the value.
 /// @return result.
-MCP320xResult mcp320x_get(int fd, MCP320xChannel channel, unsigned short* value_out);
+MCP320xResult mcp320x_get(int fd, MCP320xChannel channel, unsigned short *value_out);
 
 /// @brief Clean up the peripheral reference.
 /// @param fd
-/// @return 
+/// @return
 MCP320xResult mcp320x_cleanup(int fd);
 
 #endif

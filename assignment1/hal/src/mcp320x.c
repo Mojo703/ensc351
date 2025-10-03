@@ -7,20 +7,65 @@
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 
-MCP320xResult mcp320x_init(int* fd_out) {
+void create_header(uint8_t *tx, MCP320xChannel channel)
+{
+    // tx[0] = [0b0000_0(start)(single)(d2)]
+    tx[0] = (0x1 << 2) | (0x1 << 1) | (channel >> 2);
+
+    // tx[1] = [0b(D1)(D0)xx_xxxx]
+    tx[1] = (channel << 6);
+
+    // tx[2] = [0bxxxx_xxxx]
+    tx[2] = 0x0;
+}
+
+uint16_t get_adc_value(uint8_t *rx)
+{
+    // rx = { [0bZZZZ_ZZZZ], [0bZZZ(null)_(B11)(B10)(B9)(B8)], [0b(B7)(B6)(B5)(B4)_(B3)(B2)(B1)(B0)] }
+    // value = [0b0000_(B11)(B10)(B9)(B8)_(B7)(B6)(B5)(B4)_(B3)(B2)(B1)(B0)]
+    return ((rx[1] & 0x0F) << 8) | rx[2];
+}
+
+MCP320xResult mcp320x_init(int *fd_out)
+{
     int fd = open(MCP320x_PATH, O_RDWR);
-    if (fd < 0) {
+    if (fd < 0)
+    {
         perror("Could not open SPI");
         return MCP320x_SPI_ERROR;
     }
+
+    // Set the Mode for TX and RX.
+    uint8_t wr_mode = SPI_MODE_0; // SPI_MODE_0 = (TX on rising edge, RX on falling edge)
+    if (ioctl(fd, SPI_IOC_WR_MODE, &wr_mode) < 0)
+        return MCP320x_SPI_ERROR;
+
+    // Set to MSB first.
+    uint8_t lsb = 0; // 0 = MSB first, 1 = LSB first
+    if (ioctl(fd, SPI_IOC_WR_LSB_FIRST, &lsb) < 0)
+        return MCP320x_SPI_ERROR;
+
+    uint8_t bits = MCP320x_BITS_PER_WORD;
+    if (ioctl(fd, SPI_IOC_WR_BITS_PER_WORD, &bits) < 0)
+        return MCP320x_SPI_ERROR;
+    if (ioctl(fd, SPI_IOC_RD_BITS_PER_WORD, &bits) < 0)
+        return MCP320x_SPI_ERROR;
+
+    uint32_t speed = MCP320x_SPI_FREQUENCY;
+    if (ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed) < 0)
+        return MCP320x_SPI_ERROR;
+    if (ioctl(fd, SPI_IOC_RD_MAX_SPEED_HZ, &speed) < 0)
+        return MCP320x_SPI_ERROR;
 
     *fd_out = fd;
 
     return MCP320x_OK;
 }
 
-MCP320xResult mcp320x_cleanup(int fd) {
-    if (close(fd) < 0) {
+MCP320xResult mcp320x_cleanup(int fd)
+{
+    if (close(fd) < 0)
+    {
         perror("Could not close SPI");
         return MCP320x_SPI_ERROR;
     }
@@ -28,61 +73,26 @@ MCP320xResult mcp320x_cleanup(int fd) {
     return MCP320x_OK;
 }
 
-MCP320xResult mcp320x_get(int fd, MCP320xChannel channel, u_int16_t* value_out) {
-    uint8_t tx_0 = (0x1 << 7 | 0x1 << 6) | channel << 3; // { START[0], SINGLE/DIFF[0], CHANNEL[2, 1, 0] }
+MCP320xResult mcp320x_get(int fd, MCP320xChannel channel, uint16_t *value_out)
+{
+    uint8_t tx[MCP320x_TRANSMIT_LENGTH] = {0};
+    uint8_t rx[MCP320x_TRANSMIT_LENGTH] = {0};
 
-    uint8_t tx[] = { tx_0 };
-    uint8_t rx[2] = { 0x0, 0x0 };
+    create_header(tx, channel);
 
     struct spi_ioc_transfer tr = {
-        .tx_buf = *tx,
-        .rx_buf = *rx,
-        .len = sizeof(tx) + sizeof(rx),
-        .speed_hz = MCP320x_SPI_FREQUENCY,
-        .bits_per_word = MCP320x_BITS_PER_WORD,
-        .delay_usecs = 0,
+        .tx_buf = (unsigned long)tx,
+        .rx_buf = (unsigned long)rx,
+        .len = MCP320x_TRANSMIT_LENGTH,
     };
 
-    if (ioctl(fd, SPI_IOC_MESSAGE(1), &tr) < 0) {
+    if (ioctl(fd, SPI_IOC_MESSAGE(1), &tr) < 0)
+    {
         perror("Could not send spi message");
         return MCP320x_SPI_ERROR;
     }
 
-    *value_out = (rx[0] | (rx[1] << 8)) & 0xFFF;
+    *value_out = get_adc_value(rx);
 
     return MCP320x_OK;
 }
-
-/*
-fn read(&mut self, mode: Mode, address: u8) -> Result<Reading> {
-        // START[1] + MODE[1] + ADDR[1/3] + SAMPLE[1] + NULL[1] + DATA[10-13]
-        let size = 1 + 1 + self.channels.bit_size() + 1 + 1 + self.resolution.0;
-        let bytes = (f32::from(size) / 8f32).ceil() as u8;
-
-        let command: u32 = 1u32 << u32::from(size - 1)
-            | ((mode as u32) << u32::from(size - 2))
-            | ((u32::from(address)) << (self.resolution.0 + 2)) as u32;
-
-        let mut tx: Vec<u8> = Vec::with_capacity(bytes as usize);
-        for i in (0..bytes).rev() {
-            let shift = u32::from(8u8 * i);
-            tx.push(((command & (0b_1111_1111u32 << shift)) >> shift) as u8);
-        }
-
-        let mut rx: Vec<u8> = Vec::with_capacity(bytes as usize);
-        for _ in 0..bytes {
-            rx.push(0);
-        }
-
-        self.spi.transfer(&mut rx.as_mut_slice(), &tx.as_slice())?;
-
-        let mut result: u32 = 0;
-        for (i, byte) in rx.iter().enumerate() {
-            result |= (u32::from(*byte) << (u32::from(bytes - 1 - i as u8) * 8)) as u32;
-        }
-
-        debug_assert_eq!(result >> u32::from(self.resolution.0), 0);
-
-        Ok(Reading::new(result as u16, self.resolution.range().1))
-    }
-*/
