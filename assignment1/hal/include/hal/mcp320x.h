@@ -2,7 +2,7 @@
 #define _MCP320x_H_
 
 #define MCP320x_PATH "/dev/spidev0.0"
-#define MCP320x_SPI_FREQUENCY 1000000
+#define MCP320x_SPI_FREQUENCY 500000
 #define MCP320x_BITS_PER_WORD 8
 
 #define MCP320x_TRANSMIT_LENGTH 3
@@ -42,5 +42,13 @@ MCP320xResult mcp320x_get(int fd, MCP320xChannel channel, unsigned short *value_
 /// @param fd
 /// @return
 MCP320xResult mcp320x_cleanup(int fd);
+
+/// @brief Get many samples, and calculate the median value.
+/// @param fd
+/// @param channel
+/// @param samples
+/// @param median_out
+/// @return
+MCP320xResult mcp320x_get_median(int fd, MCP320xChannel channel, unsigned long samples, unsigned short *median_out);
 
 #endif

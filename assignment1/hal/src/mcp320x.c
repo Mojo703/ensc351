@@ -96,3 +96,49 @@ MCP320xResult mcp320x_get(int fd, MCP320xChannel channel, uint16_t *value_out)
 
     return MCP320x_OK;
 }
+
+int cmp_uint16(const void *a, const void *b)
+{
+    uint16_t va = *(const uint16_t *)a;
+    uint16_t vb = *(const uint16_t *)b;
+    return (va > vb) - (va < vb);
+}
+
+MCP320xResult mcp320x_get_median(int fd, MCP320xChannel channel, size_t samples, uint16_t *median_out)
+{
+    if (samples == 0)
+        return MCP320x_SPI_ERROR;
+
+    uint16_t *buf = malloc(samples * sizeof(uint16_t));
+    if (!buf)
+        return MCP320x_SPI_ERROR;
+
+    // read N samples
+    for (size_t i = 0; i < samples; i++)
+    {
+        MCP320xResult r = mcp320x_get(fd, channel, &buf[i]);
+        if (r != MCP320x_OK)
+        {
+            free(buf);
+            return r;
+        }
+    }
+
+    // sort them
+    qsort(buf, samples, sizeof(uint16_t), cmp_uint16);
+
+    // take median
+    if (samples % 2 == 1)
+    {
+        *median_out = buf[samples / 2];
+    }
+    else
+    {
+        uint16_t a = buf[(samples / 2) - 1];
+        uint16_t b = buf[samples / 2];
+        *median_out = (a + b) / 2;
+    }
+
+    free(buf);
+    return MCP320x_OK;
+}
