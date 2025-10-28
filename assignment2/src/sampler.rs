@@ -55,6 +55,22 @@ impl Sampler {
         }
     }
 
+    pub fn extend_samples<I: IntoIterator<Item = Sample>>(
+        &mut self,
+        samples: I,
+        now: time::Instant,
+    ) {
+        self.cull_old_samples(now);
+
+        for sample in samples.into_iter() {
+            self.samples.push(sample);
+            self.total += 1;
+
+            let avg = self.avg.get_or_insert(sample.voltage);
+            *avg = *avg * 0.999 + sample.voltage * 0.001;
+        }
+    }
+
     pub fn add_sample(&mut self, sample: Sample, now: time::Instant) {
         self.cull_old_samples(now);
         self.samples.push(sample);

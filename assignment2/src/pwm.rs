@@ -2,7 +2,7 @@ use std::fmt::Display;
 use std::io::{self, Write};
 use std::{fs, path, time};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Frequency(u64);
 
 impl Frequency {
@@ -31,56 +31,43 @@ fn write_sysfs<P: AsRef<path::Path>>(path: P, value: &[u8]) -> io::Result<()> {
 pub struct Pwm {
     path: path::PathBuf,
 
-    period: Option<time::Duration>,
-    duty_cycle: Option<time::Duration>,
-    enable: Option<bool>,
+    previous: Option<Frequency>,
+    is_enabled: bool,
 }
 
 impl Pwm {
     pub fn new<P: Into<path::PathBuf>>(path: P) -> Self {
         Self {
             path: path.into(),
-            period: None,
-            duty_cycle: None,
-            enable: None,
+            previous: None,
+            is_enabled: false,
         }
     }
 
-    pub fn set(&mut self, frequency: Frequency, duty_cycle: f64) -> io::Result<()> {
-        let period = 1_000_000_000 / frequency.as_hz();
-        let duty_cycle = (1_000_000_000.0 * duty_cycle).round() as u64 / frequency.as_hz();
+    pub fn set(&mut self, frequency: Frequency) -> io::Result<()> {
+        if frequency.as_hz() == 0 {
+            self.set_enable(false)?;
+        } else if self.previous.is_none_or(|prev| prev != frequency) {
+            let period = 1_000_000_000 / frequency.as_hz();
+            let duty = period / 2;
 
-        let period = time::Duration::from_nanos(period);
-        let duty_cycle = time::Duration::from_nanos(duty_cycle);
+            write_sysfs(self.path.join("duty_cycle"), b"250000")?;
+            write_sysfs(self.path.join("period"), b"500000")?;
+            write_sysfs(self.path.join("period"), format!("{}", period).as_bytes())?;
+            write_sysfs(self.path.join("duty_cycle"), format!("{}", duty).as_bytes())?;
+            self.set_enable(true)?;
 
-        if self.period.is_some_and(|current| current == period)
-            && self.duty_cycle.is_some_and(|current| current == duty_cycle)
-        {
-            return Ok(());
-        }
-
-        write_sysfs(self.path.join("duty_cycle"), b"250000")?;
-        write_sysfs(self.path.join("period"), b"500000")?;
-        write_sysfs(
-            self.path.join("period"),
-            format!("{}", period.as_nanos()).as_bytes(),
-        )?;
-        write_sysfs(
-            self.path.join("duty_cycle"),
-            format!("{}", duty_cycle.as_nanos()).as_bytes(),
-        )?;
-
-        self.duty_cycle = Some(duty_cycle);
-        self.period = Some(period);
+            self.previous = Some(frequency);
+        };
 
         Ok(())
     }
 
     pub fn set_enable(&mut self, enable: bool) -> io::Result<()> {
-        if self.enable.is_some_and(|current| current == enable) {
+        if self.is_enabled == enable {
             return Ok(());
         }
-        self.enable = Some(enable);
+        self.is_enabled = enable;
         write_sysfs(self.path.join("enable"), if enable { b"1" } else { b"0" })
     }
 }

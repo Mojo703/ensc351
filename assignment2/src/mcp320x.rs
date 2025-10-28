@@ -8,6 +8,7 @@ pub enum Error {
     Spi(#[from] io::Error),
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum Channel {
     CH0 = 0,
 }
@@ -43,6 +44,22 @@ impl MCP320X {
     pub fn get_voltage(&mut self, channel: Channel) -> Result<f64, Error> {
         self.get(channel)
             .map(|sample| sample as f64 * self.vref / 4096.0)
+    }
+
+    pub fn get_mean_voltage(
+        &mut self,
+        channel: Channel,
+        sample_count: usize,
+    ) -> Result<f64, Error> {
+        let mut samples: Vec<f64> = (0..sample_count)
+            .into_iter()
+            .map(move |_| self.get_voltage(channel))
+            .collect::<Result<_, _>>()?;
+
+        let mid = sample_count / 2;
+        let (_, median, _) = samples.select_nth_unstable_by(mid, |a, b| a.partial_cmp(b).unwrap());
+
+        Ok(*median)
     }
 
     fn get_tx(channel: Channel) -> [u8; 3] {

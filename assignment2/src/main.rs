@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
     socket.set_nonblocking(true)?;
     let mut sampler = Sampler::new();
     let mut led = pwm::Pwm::new(PWM_PATH);
-    let mut encoder = encoder::Encoder::start(4, 50)?;
+    let mut encoder = encoder::Encoder::start(0, 600)?;
 
     let (sample_tx, sample_rx) = sync::mpsc::channel();
     let (sample_kill_tx, sample_kill_rx) = sync::mpsc::channel::<()>();
@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
                 continue;
             }
 
-            let voltage: f64 = adc.get_voltage(mcp320x::Channel::CH0)?;
+            let voltage: f64 = adc.get_mean_voltage(mcp320x::Channel::CH0, 10)?;
             sample_tx.send(sampler::Sample::new(voltage, now))?;
             previous = Some(now);
 
@@ -88,16 +88,10 @@ fn main() -> anyhow::Result<()> {
     loop {
         let now = time::Instant::now();
 
-        let pwm_freq = pwm::Frequency::hz((encoder.get_offset() as u64 / 4) * 10);
-        led.set(pwm_freq, 0.5)?;
+        let pwm_freq = pwm::Frequency::hz(encoder.get_offset() as u64);
+        led.set(pwm_freq)?;
 
-        match sample_rx.try_recv() {
-            Ok(sample) => sampler.add_sample(sample, now),
-            Err(mpsc::TryRecvError::Empty) => {}
-            Err(mpsc::TryRecvError::Disconnected) => {
-                break Err(anyhow::anyhow!("Sample channel disconnected."));
-            }
-        }
+        sampler.extend_samples(sample_rx.try_iter(), now);
 
         if last_report.is_none_or(|last_report| now - last_report > REPORT_PERIOD) {
             let sample_count = sampler.history_size(now);
@@ -238,7 +232,10 @@ stop    -- cause the server program to end.
         Ok(Command::Stop) => CommandsResult::Exit(rx_addr),
         Ok(Command::Repeat) | Err(CommandParseError::Unknown) => CommandsResult::Response(
             rx_addr,
-            format!("Unkown command: \"{}\".\n", command_text.trim()),
+            format!(
+                "Unkown command: \"{}\". Type help for a list of valid commands.\n",
+                command_text.trim()
+            ),
         ),
     }
 }
