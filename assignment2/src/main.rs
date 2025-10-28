@@ -1,4 +1,5 @@
 mod mcp320x;
+mod pwm;
 mod sampler;
 
 use sampler::Sampler;
@@ -42,13 +43,15 @@ impl TryFrom<String> for Command {
 }
 
 fn main() -> anyhow::Result<()> {
+    const PWM_PATH: &'static str = "/dev/hat/pwm/GPIO16";
     const UDP_ADDR: &'static str = "0.0.0.0:12345";
     const UDP_BUF_SIZE: usize = 1024;
+    const REPORT_PERIOD: time::Duration = time::Duration::from_secs(1);
 
     let socket = net::UdpSocket::bind(UDP_ADDR)?;
     socket.set_nonblocking(true)?;
     let mut sampler = Sampler::new();
-    let mut previous_command = None::<Command>;
+    let mut led = pwm::PWM::new(PWM_PATH);
 
     let (sample_tx, sample_rx) = sync::mpsc::channel();
     let (sample_kill_tx, sample_kill_rx) = sync::mpsc::channel::<()>();
@@ -77,10 +80,13 @@ fn main() -> anyhow::Result<()> {
     });
 
     let mut last_report = None;
-    let report_period = time::Duration::from_secs(1);
+    let mut previous_command = None;
+    let pwm_freq = pwm::Frequency::hz(500);
 
     loop {
         let now = time::Instant::now();
+
+        led.set(pwm_freq, 0.5, true)?;
 
         match sample_rx.try_recv() {
             Ok(sample) => sampler.add_sample(sample, now),
@@ -90,9 +96,8 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
-        if last_report.is_none_or(|last_report| now - last_report > report_period) {
+        if last_report.is_none_or(|last_report| now - last_report > REPORT_PERIOD) {
             let sample_count = sampler.history_size(now);
-            let pwm_freq = 1234;
             let avg = sampler.get_avg();
             let dips = sampler.get_dips_count(now);
             let jitter = sampler.get_jitter_info(now);
@@ -101,8 +106,7 @@ fn main() -> anyhow::Result<()> {
                 let history: Vec<f64> = sampler.history(now).collect();
 
                 println!(
-                    "#Smpl/s = {sample_count:<4} Flash @ {:<7} avg = {avg:<4.3}V dips={dips:<3} {jitter}",
-                    format!("{pwm_freq}Hz")
+                    "#Smpl/s = {sample_count:<4} Flash @ {pwm_freq:<7} avg = {avg:<4.3}V dips={dips:<3} {jitter}",
                 );
 
                 println!(
@@ -145,6 +149,7 @@ fn main() -> anyhow::Result<()> {
     sample_thread
         .join()
         .map_err(|e| anyhow::anyhow!("Sample thread panicked: {:?}", e))??;
+    led.set_enable(false)?;
 
     Ok(())
 }
