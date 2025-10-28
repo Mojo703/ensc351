@@ -52,7 +52,7 @@ fn main() -> anyhow::Result<()> {
     let socket = net::UdpSocket::bind(UDP_ADDR)?;
     socket.set_nonblocking(true)?;
     let mut sampler = Sampler::new();
-    let mut led = pwm::PWM::new(PWM_PATH);
+    let mut led = pwm::Pwm::new(PWM_PATH);
     let mut encoder = encoder::Encoder::start(4, 50)?;
 
     let (sample_tx, sample_rx) = sync::mpsc::channel();

@@ -1,15 +1,15 @@
 use std::{sync::mpsc, thread};
 
 enum Pulse {
-    CW,
-    CCW,
+    Cw,
+    Ccw,
 }
 
 impl Pulse {
     fn delta(self) -> i32 {
         match self {
-            Self::CW => -1,
-            Self::CCW => 1,
+            Self::Cw => -1,
+            Self::Ccw => 1,
         }
     }
 }
@@ -45,11 +45,11 @@ impl Encoder {
                     ((false, false), (true, false))
                     | ((true, false), (true, true))
                     | ((true, true), (false, true))
-                    | ((false, true), (false, false)) => Some(Pulse::CW),
+                    | ((false, true), (false, false)) => Some(Pulse::Cw),
                     ((false, false), (false, true))
                     | ((false, true), (true, true))
                     | ((true, true), (true, false))
-                    | ((true, false), (false, false)) => Some(Pulse::CCW),
+                    | ((true, false), (false, false)) => Some(Pulse::Ccw),
                     _ => None,
                 } {
                     last_state = state;

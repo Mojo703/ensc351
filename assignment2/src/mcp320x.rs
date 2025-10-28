@@ -5,7 +5,7 @@ use linux_embedded_hal::spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTran
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("SPI fault: {0}")]
-    SPI(#[from] io::Error),
+    Spi(#[from] io::Error),
 }
 
 pub enum Channel {

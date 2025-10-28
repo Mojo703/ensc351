@@ -106,10 +106,20 @@ impl Sampler {
 
         self.history(now)
             .fold((High, 0), |(state, count), voltage| match state {
-                High => (voltage < avg - 0.1)
-                    .then_some((Low, count + 1))
-                    .unwrap_or((High, count)),
-                Low => if voltage > avg - 0.07 { (High, count) } else { (Low, count) },
+                High => {
+                    if voltage < avg - 0.1 {
+                        (Low, count + 1)
+                    } else {
+                        (High, count)
+                    }
+                }
+                Low => {
+                    if voltage > avg - 0.07 {
+                        (High, count)
+                    } else {
+                        (Low, count)
+                    }
+                }
             })
             .1
     }

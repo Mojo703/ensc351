@@ -28,7 +28,7 @@ fn write_sysfs<P: AsRef<path::Path>>(path: P, value: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
-pub struct PWM {
+pub struct Pwm {
     path: path::PathBuf,
 
     period: Option<time::Duration>,
@@ -36,7 +36,7 @@ pub struct PWM {
     enable: Option<bool>,
 }
 
-impl PWM {
+impl Pwm {
     pub fn new<P: Into<path::PathBuf>>(path: P) -> Self {
         Self {
             path: path.into(),
