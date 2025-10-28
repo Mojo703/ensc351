@@ -59,14 +59,14 @@ impl PWM {
             return Ok(());
         }
 
-        write_sysfs(&self.path.join("duty_cycle"), b"250000")?;
-        write_sysfs(&self.path.join("period"), b"500000")?;
+        write_sysfs(self.path.join("duty_cycle"), b"250000")?;
+        write_sysfs(self.path.join("period"), b"500000")?;
         write_sysfs(
-            &self.path.join("period"),
+            self.path.join("period"),
             format!("{}", period.as_nanos()).as_bytes(),
         )?;
         write_sysfs(
-            &self.path.join("duty_cycle"),
+            self.path.join("duty_cycle"),
             format!("{}", duty_cycle.as_nanos()).as_bytes(),
         )?;
 
@@ -81,6 +81,6 @@ impl PWM {
             return Ok(());
         }
         self.enable = Some(enable);
-        write_sysfs(&self.path.join("enable"), if enable { b"1" } else { b"0" })
+        write_sysfs(self.path.join("enable"), if enable { b"1" } else { b"0" })
     }
 }

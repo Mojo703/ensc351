@@ -109,9 +109,7 @@ impl Sampler {
                 High => (voltage < avg - 0.1)
                     .then_some((Low, count + 1))
                     .unwrap_or((High, count)),
-                Low => (voltage > avg - 0.07)
-                    .then_some((High, count))
-                    .unwrap_or((Low, count)),
+                Low => if voltage > avg - 0.07 { (High, count) } else { (Low, count) },
             })
             .1
     }

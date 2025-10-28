@@ -44,8 +44,8 @@ impl TryFrom<String> for Command {
 }
 
 fn main() -> anyhow::Result<()> {
-    const PWM_PATH: &'static str = "/dev/hat/pwm/GPIO16";
-    const UDP_ADDR: &'static str = "0.0.0.0:12345";
+    const PWM_PATH: &str = "/dev/hat/pwm/GPIO16";
+    const UDP_ADDR: &str = "0.0.0.0:12345";
     const UDP_BUF_SIZE: usize = 1024;
     const REPORT_PERIOD: time::Duration = time::Duration::from_secs(1);
 
@@ -134,7 +134,7 @@ fn main() -> anyhow::Result<()> {
         match handle_commands(&mut sampler, &mut previous_command, response, now) {
             CommandsResult::Invalid => {}
             CommandsResult::Exit(addr) => {
-                socket.send_to(format!("Program terminating.\n").as_bytes(), addr)?;
+                socket.send_to(b"Program terminating.\n", addr)?;
                 break Ok(());
             }
             CommandsResult::Response(addr, text) => {
@@ -192,8 +192,7 @@ fn handle_commands(
     match command {
         Ok(Command::Help) => CommandsResult::Response(
             rx_addr,
-            format!(
-                r#"
+            r#"
 Accepted command examples:
 count   -- get the total number of samples taken.
 length  -- get the number of samples taken in the previously completed second.
@@ -202,7 +201,7 @@ history -- get all the samples in the previously completed second.
 stop    -- cause the server program to end.
 <enter> -- repeat last command. 
 "#
-            ),
+            .to_string(),
         ),
         Ok(Command::Count) => CommandsResult::Response(
             rx_addr,

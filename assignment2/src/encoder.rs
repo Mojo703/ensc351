@@ -1,4 +1,4 @@
-use std::{ops::Add, sync::mpsc, thread};
+use std::{sync::mpsc, thread};
 
 enum Pulse {
     CW,
