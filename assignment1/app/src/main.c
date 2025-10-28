@@ -243,8 +243,15 @@ void game(int adc, int led_g, int led_r)
         int pause_length_ms = (rand() % (PAUSE_MAX_MS - PAUSE_MIN_MS)) + PAUSE_MIN_MS;
         msleep(pause_length_ms);
 
+        enum JoystickState s = get_joystick(adc);
+        if (s == JOYSTICK_LEFT || s == JOYSTICK_RIGHT)
+        {
+            printf("User selected to quit.\n");
+            break;
+        }
+
         // If the user is holding the joystick, restart the game.
-        if (get_joystick(adc) != JOYSTICK_CENTER)
+        if (s != JOYSTICK_CENTER)
         {
             printf("too soon.\n");
             continue;
@@ -279,6 +286,7 @@ void joystick_test(int adc)
 
 int main()
 {
+
     // Init the HAL
     int led_r;
     int led_g;
