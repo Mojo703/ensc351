@@ -1,3 +1,4 @@
+mod encoder;
 mod mcp320x;
 mod pwm;
 mod sampler;
@@ -52,6 +53,7 @@ fn main() -> anyhow::Result<()> {
     socket.set_nonblocking(true)?;
     let mut sampler = Sampler::new();
     let mut led = pwm::PWM::new(PWM_PATH);
+    let mut encoder = encoder::Encoder::start(4, 50)?;
 
     let (sample_tx, sample_rx) = sync::mpsc::channel();
     let (sample_kill_tx, sample_kill_rx) = sync::mpsc::channel::<()>();
@@ -81,12 +83,13 @@ fn main() -> anyhow::Result<()> {
 
     let mut last_report = None;
     let mut previous_command = None;
-    let pwm_freq = pwm::Frequency::hz(500);
+    led.set_enable(true)?;
 
     loop {
         let now = time::Instant::now();
 
-        led.set(pwm_freq, 0.5, true)?;
+        let pwm_freq = pwm::Frequency::hz((encoder.get_offset() as u64 / 4) * 10);
+        led.set(pwm_freq, 0.5)?;
 
         match sample_rx.try_recv() {
             Ok(sample) => sampler.add_sample(sample, now),
@@ -150,6 +153,7 @@ fn main() -> anyhow::Result<()> {
         .join()
         .map_err(|e| anyhow::anyhow!("Sample thread panicked: {:?}", e))??;
     led.set_enable(false)?;
+    encoder.end()?;
 
     Ok(())
 }

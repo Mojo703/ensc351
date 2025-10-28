@@ -21,9 +21,11 @@ impl Display for Frequency {
     }
 }
 
-fn write_sysfs<P: AsRef<path::Path>, T: Display>(path: P, value: T) -> io::Result<()> {
+fn write_sysfs<P: AsRef<path::Path>>(path: P, value: &[u8]) -> io::Result<()> {
     let mut file = fs::OpenOptions::new().write(true).open(path)?;
-    write!(file, "{}", value)
+    file.write_all(value)?;
+    std::thread::sleep(time::Duration::from_millis(1));
+    Ok(())
 }
 
 pub struct PWM {
@@ -44,7 +46,7 @@ impl PWM {
         }
     }
 
-    pub fn set(&mut self, frequency: Frequency, duty_cycle: f64, enable: bool) -> io::Result<()> {
+    pub fn set(&mut self, frequency: Frequency, duty_cycle: f64) -> io::Result<()> {
         let period = 1_000_000_000 / frequency.as_hz();
         let duty_cycle = (1_000_000_000.0 * duty_cycle).round() as u64 / frequency.as_hz();
 
@@ -53,19 +55,23 @@ impl PWM {
 
         if self.period.is_some_and(|current| current == period)
             && self.duty_cycle.is_some_and(|current| current == duty_cycle)
-            && self.enable.is_some_and(|current| current == enable)
         {
             return Ok(());
         }
 
-        write_sysfs(&self.path.join("duty_cycle"), 0)?;
-        write_sysfs(&self.path.join("period"), period.as_nanos())?;
-        write_sysfs(&self.path.join("duty_cycle"), duty_cycle.as_nanos())?;
-        write_sysfs(&self.path.join("enable"), if enable { 1 } else { 0 })?;
+        write_sysfs(&self.path.join("duty_cycle"), b"250000")?;
+        write_sysfs(&self.path.join("period"), b"500000")?;
+        write_sysfs(
+            &self.path.join("period"),
+            format!("{}", period.as_nanos()).as_bytes(),
+        )?;
+        write_sysfs(
+            &self.path.join("duty_cycle"),
+            format!("{}", duty_cycle.as_nanos()).as_bytes(),
+        )?;
 
         self.duty_cycle = Some(duty_cycle);
         self.period = Some(period);
-        self.enable = Some(enable);
 
         Ok(())
     }
@@ -74,8 +80,7 @@ impl PWM {
         if self.enable.is_some_and(|current| current == enable) {
             return Ok(());
         }
-        println!("enable := {}", if enable { 1 } else { 0 });
         self.enable = Some(enable);
-        write_sysfs(&self.path.join("enable"), if enable { 1 } else { 0 })
+        write_sysfs(&self.path.join("enable"), if enable { b"1" } else { b"0" })
     }
 }
