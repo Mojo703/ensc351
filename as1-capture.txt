@@ -1,0 +1,122 @@
+matthew@DESKTOP-QJ6FUDH:~/projects/ensc351/assignment1$ ip addr
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host proto kernel_lo
+       valid_lft forever preferred_lft forever
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 00:15:5d:fd:45:b2 brd ff:ff:ff:ff:ff:ff
+    altname enx00155dfd45b2
+    inet 172.21.149.235/20 brd 172.21.159.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::215:5dff:fefd:45b2/64 scope link proto kernel_ll
+       valid_lft forever preferred_lft forever
+matthew@DESKTOP-QJ6FUDH:~/projects/ensc351/assignment1$ ping 10.0.2.106
+PING 10.0.2.106 (10.0.2.106) 56(84) bytes of data.
+64 bytes from 10.0.2.106: icmp_seq=1 ttl=63 time=58.4 ms
+64 bytes from 10.0.2.106: icmp_seq=2 ttl=63 time=282 ms
+64 bytes from 10.0.2.106: icmp_seq=3 ttl=63 time=203 ms
+^C
+--- 10.0.2.106 ping statistics ---
+4 packets transmitted, 3 received, 25% packet loss, time 3005ms
+rtt min/avg/max/mdev = 58.362/181.136/282.358/92.707 ms
+matthew@DESKTOP-QJ6FUDH:~/projects/ensc351/assignment1$ ssh Matthew@matthew-y-ai
+The authenticity of host 'matthew-y-ai (10.0.2.106)' can't be established.
+ED25519 key fingerprint is SHA256:STy20TclCUG3ElIuxfEz21ALtOWz9C/fcFOUxmfzth8.
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:1: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added 'matthew-y-ai' (ED25519) to the list of known hosts.
+Debian GNU/Linux 13
+
+BeagleBoard.org Debian Trixie Base Image 2025-08-29
+Support: https://bbb.io/debian
+default username is [Matthew]
+
+Matthew's BeagleY-AI. Welcome!
+Last login: Sat Oct 18 12:16:00 2025 from ::ffff:10.0.0.10
+Get ready for the reaction time game. Wait for the signal, and press up or down on the joystick.
+(Press left or right to exit)
+Get Ready...
+Press DOWN!
+You pressed Down.
+Correct!
+Your reaction time was 1321ms. You have set a new best time.
+Get Ready...
+Press DOWN!
+You pressed Down.
+Correct!
+Your reaction time was 599ms. You have set a new best time.
+Get Ready...
+Press UP!
+You pressed Up.
+Correct!
+Your reaction time was 1015ms. Best so far was 599ms.
+Get Ready...
+Press UP!
+You pressed Left.
+User selected to quit.
+Matthew@matthew-y-ai:~$ ./bin/assignment1
+Get ready for the reaction time game. Wait for the signal, and press up or down on the joystick.
+(Press left or right to exit)
+Get Ready...
+Press DOWN!
+You pressed Up.
+Incorrect.
+Get Ready...
+too soon.
+Get Ready...
+Press DOWN!
+You pressed Left.
+User selected to quit.
+Matthew@matthew-y-ai:~$ ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host noprefixroute
+       valid_lft forever preferred_lft forever
+2: dummy0: <BROADCAST,NOARP> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether ce:87:63:45:e2:21 brd ff:ff:ff:ff:ff:ff
+3: eth0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq state DOWN group default qlen 1000
+    link/ether 04:25:e8:b1:02:b6 brd ff:ff:ff:ff:ff:ff
+    altname enx0425e8b102b6
+4: wlan0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq state DOWN group default qlen 1000
+    link/ether da:68:f7:68:36:e7 brd ff:ff:ff:ff:ff:ff permaddr 68:23:b0:1e:d0:08
+5: SoftAp0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 6a:23:b0:1e:d0:09 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.8.1/24 brd 192.168.8.255 scope global SoftAp0
+       valid_lft forever preferred_lft forever
+    inet 10.0.2.106/16 brd 10.0.255.255 scope global dynamic noprefixroute SoftAp0
+       valid_lft 172772sec preferred_lft 172772sec
+    inet6 2604:3d08:8e82:6000::96db/128 scope global dynamic noprefixroute
+       valid_lft 172775sec preferred_lft 172775sec
+    inet6 2604:3d08:8e82:6000:780b:b2be:d17f:e6a4/64 scope global dynamic noprefixroute
+       valid_lft 298sec preferred_lft 298sec
+    inet6 2604:3d08:8e82:6000:6823:b0ff:fe1e:d009/64 scope global dynamic mngtmpaddr noprefixroute
+       valid_lft 298sec preferred_lft 298sec
+    inet6 fe80::10c:3721:c3a7:e703/64 scope link noprefixroute
+       valid_lft forever preferred_lft forever
+6: usb0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel state DOWN group default qlen 1000
+    link/ether 1c:ba:8c:a2:ed:6b brd ff:ff:ff:ff:ff:ff
+Matthew@matthew-y-ai:~$ ping google.com
+PING google.com (2607:f8b0:400a:809::200e) 56 data bytes
+64 bytes from sea15s12-in-x0e.1e100.net (2607:f8b0:400a:809::200e): icmp_seq=1 ttl=119 time=16.4 ms
+64 bytes from sea15s12-in-x0e.1e100.net (2607:f8b0:400a:809::200e): icmp_seq=2 ttl=119 time=18.8 ms
+64 bytes from sea15s12-in-x0e.1e100.net (2607:f8b0:400a:809::200e): icmp_seq=3 ttl=119 time=337 ms
+64 bytes from sea15s12-in-x0e.1e100.net (2607:f8b0:400a:809::200e): icmp_seq=4 ttl=119 time=259 ms
+^C
+--- google.com ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3005ms
+rtt min/avg/max/mdev = 16.427/157.722/336.566/142.760 ms
+Matthew@matthew-y-ai:~$ cat /boot/firmware/ID.txt
+BeagleBoard.org Debian Trixie Base Image 2025-08-29
+Matthew@matthew-y-ai:~$ cat /proc/version
+Linux version 6.1.83-ti-arm64-r72 (voodoo@rpi5b8g-66) (gcc (Debian 14.2.0-19) 14.2.0, GNU ld (GNU Binutils for Debian) 2.44) #1trixie SMP PREEMPT_DYNAMIC Wed Aug  6 18:28:52 UTC 2025
+Matthew@matthew-y-ai:~$ cat /proc/uptime
+635.19 2417.08
+Matthew@matthew-y-ai:~$ exit
+logout
+Connection to matthew-y-ai closed.
+matthew@DESKTOP-QJ6FUDH:~/projects/ensc351/assignment1$
