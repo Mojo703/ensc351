@@ -29,15 +29,10 @@ pub struct JitterInfo {
 
 impl Display for JitterInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let JitterInfo {
-            max,
-            min,
-            avg,
-            num_samples,
-        } = self;
-        let max = max.as_micros() as f64 / 1000.0;
-        let min = min.as_micros() as f64 / 1000.0;
-        let avg = avg.as_micros() as f64 / 1000.0;
+        let max = self.max.as_micros() as f64 / 1000.0;
+        let min = self.min.as_micros() as f64 / 1000.0;
+        let avg = self.avg.as_micros() as f64 / 1000.0;
+        let num_samples = self.num_samples;
         write!(
             f,
             "Smpl ms[{min:6.3}, {max:6.3}] avg {avg:>6.3}/{num_samples:<4}",
@@ -55,6 +50,7 @@ impl Sampler {
         }
     }
 
+    // Add multiple samples to the history
     pub fn extend_samples<I: IntoIterator<Item = Sample>>(
         &mut self,
         samples: I,
@@ -63,6 +59,12 @@ impl Sampler {
         self.cull_old_samples(now);
 
         for sample in samples.into_iter() {
+            assert!(
+                self.samples
+                    .last()
+                    .is_none_or(|prev| prev.time <= sample.time),
+                "Samples must be inserted chronological."
+            );
             self.samples.push(sample);
             self.total += 1;
 
@@ -71,18 +73,10 @@ impl Sampler {
         }
     }
 
-    pub fn add_sample(&mut self, sample: Sample, now: time::Instant) {
-        self.cull_old_samples(now);
-        self.samples.push(sample);
-        self.total += 1;
-
-        let avg = self.avg.get_or_insert(sample.voltage);
-        *avg = *avg * 0.999 + sample.voltage * 0.001;
-    }
-
     fn cull_old_samples(&mut self, now: time::Instant) {
-        self.samples
-            .retain(|&Sample { voltage: _, time }| now - time < self.period);
+        let cutoff = now - self.period;
+        let idx = self.samples.partition_point(|s| s.time < cutoff);
+        self.samples.drain(..idx);
     }
 
     // Get the number of samples collected during the previous complete second.
@@ -121,49 +115,80 @@ impl Sampler {
         let Some(avg) = self.avg else { return 0 };
 
         self.history(now)
-            .fold((High, 0), |(state, count), voltage| match state {
-                High => {
-                    if voltage < avg - 0.1 {
-                        (Low, count + 1)
-                    } else {
-                        (High, count)
-                    }
-                }
-                Low => {
-                    if voltage > avg - 0.07 {
-                        (High, count)
-                    } else {
-                        (Low, count)
-                    }
+            .fold((High, 0), |(state, count), voltage| {
+                if matches!(state, High) && voltage < avg - 0.1 {
+                    (Low, count + 1)
+                } else if matches!(state, Low) && voltage > avg - 0.07 {
+                    (High, count)
+                } else {
+                    (state, count)
                 }
             })
             .1
     }
 
+    // Calculate the jitter information (statistics on the time between samples).
     pub fn get_jitter_info(&self, now: time::Instant) -> Option<JitterInfo> {
-        self.samples
-            .windows(2)
-            .filter(|s| now - s[0].time < self.period)
-            .map(|s| s[1].time - s[0].time)
-            .fold(
-                None::<(time::Duration, time::Duration, time::Duration, usize)>,
-                |stats, between| {
-                    Some(match stats {
-                        None => (between, between, between, 2),
-                        Some((min, max, total, count)) => (
-                            min.min(between),
-                            max.max(between),
-                            total + between,
-                            count + 1,
-                        ),
-                    })
-                },
-            )
-            .map(|(min, max, total, num_samples)| JitterInfo {
-                max,
-                min,
-                avg: total / (num_samples as u32),
-                num_samples,
-            })
+        HistoryStats::try_from_iter(
+            self.samples
+                .windows(2)
+                .filter(|s| now - s[0].time < self.period)
+                .map(|s| s[1].time - s[0].time),
+        )
+        .map(|h| h.into())
+    }
+}
+
+struct HistoryStats {
+    min: time::Duration,
+    max: time::Duration,
+    total: time::Duration,
+    count: usize,
+}
+
+impl HistoryStats {
+    fn new(delta: time::Duration) -> Self {
+        Self {
+            min: delta,
+            max: delta,
+            total: delta,
+            count: 1,
+        }
+    }
+
+    fn try_from_iter<T: IntoIterator<Item = time::Duration>>(iter: T) -> Option<Self> {
+        let mut iter = iter.into_iter();
+        let stats = HistoryStats::new(iter.next()?);
+        Some(iter.fold(stats, |prev, delta| prev.update(delta)))
+    }
+
+    fn update(self, delta: time::Duration) -> Self {
+        let min = self.min.min(delta);
+        let max = self.max.max(delta);
+        let total = self.total + delta;
+        let count = self.count + 1;
+        Self {
+            min,
+            max,
+            total,
+            count,
+        }
+    }
+}
+
+impl From<HistoryStats> for JitterInfo {
+    fn from(value: HistoryStats) -> Self {
+        let HistoryStats {
+            min,
+            max,
+            total,
+            count,
+        } = value;
+        JitterInfo {
+            min,
+            max,
+            avg: total / (count as u32),
+            num_samples: count,
+        }
     }
 }

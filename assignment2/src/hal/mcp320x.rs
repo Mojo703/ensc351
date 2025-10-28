@@ -52,7 +52,6 @@ impl MCP320X {
         sample_count: usize,
     ) -> Result<f64, Error> {
         let mut samples: Vec<f64> = (0..sample_count)
-            .into_iter()
             .map(move |_| self.get_voltage(channel))
             .collect::<Result<_, _>>()?;
 

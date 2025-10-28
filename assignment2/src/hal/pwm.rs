@@ -44,6 +44,13 @@ impl Pwm {
         }
     }
 
+    pub fn init(&mut self) -> io::Result<()> {
+        write_sysfs(self.path.join("period"), b"1000000\n")?;
+        write_sysfs(self.path.join("duty_cycle"), b"500000\n")?;
+        write_sysfs(self.path.join("enable"), b"0\n")?;
+        Ok(())
+    }
+
     pub fn set(&mut self, frequency: Frequency) -> io::Result<()> {
         if frequency.as_hz() == 0 {
             self.set_enable(false)?;

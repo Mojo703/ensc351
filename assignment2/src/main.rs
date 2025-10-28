@@ -1,8 +1,7 @@
-mod encoder;
-mod mcp320x;
-mod pwm;
+mod hal;
 mod sampler;
 
+use hal::{encoder, mcp320x, pwm};
 use sampler::Sampler;
 use std::io;
 use std::net;
@@ -81,10 +80,10 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
+    led.init()?;
+
     let mut last_report = None;
     let mut previous_command = None;
-    led.set_enable(true)?;
-
     loop {
         let now = time::Instant::now();
 
