@@ -1,25 +1,25 @@
+/**
+ * Hardware interface for the MCP320X line of SPI ADCs.
+ */
 use std::io;
 
 use linux_embedded_hal::spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("SPI fault: {0}")]
-    Spi(#[from] io::Error),
-}
-
+/// The channels that can be polled.
 #[derive(Debug, Clone, Copy)]
 pub enum Channel {
     CH0 = 0,
 }
 
+/// MCP320X connected over SPI, with an assumed Vref.
 pub struct MCP320X {
     spi: Spidev,
     vref: f64,
 }
 
 impl MCP320X {
-    pub fn new<P: AsRef<std::path::Path>>(path: P, vref: f64) -> Result<Self, Error> {
+    /// Open a connection with an MCP320X over SPI.
+    pub fn new<P: AsRef<std::path::Path>>(path: P, vref: f64) -> io::Result<Self> {
         let mut spi = Spidev::open(path)?;
         spi.configure(&SpidevOptions {
             spi_mode: Some(SpiModeFlags::SPI_MODE_0),
@@ -31,7 +31,8 @@ impl MCP320X {
         Ok(Self { spi, vref })
     }
 
-    pub fn get(&mut self, channel: Channel) -> Result<u16, Error> {
+    /// Get a single raw measurement from the ADC.
+    pub fn get(&mut self, channel: Channel) -> io::Result<u16> {
         let tx_buf = Self::get_tx(channel);
         let mut rx_buf = [0; 3];
 
@@ -41,16 +42,14 @@ impl MCP320X {
         Ok(Self::parse_rx(rx_buf))
     }
 
-    pub fn get_voltage(&mut self, channel: Channel) -> Result<f64, Error> {
+    /// Get a single voltage measurement from the ADC. Based on the assumed vref.
+    pub fn get_voltage(&mut self, channel: Channel) -> io::Result<f64> {
         self.get(channel)
             .map(|sample| sample as f64 * self.vref / 4096.0)
     }
 
-    pub fn get_mean_voltage(
-        &mut self,
-        channel: Channel,
-        sample_count: usize,
-    ) -> Result<f64, Error> {
+    /// Collect many voltage samples, and calculate the median. Used to counteract noise and bad readings.
+    pub fn get_median_voltage(&mut self, channel: Channel, sample_count: usize) -> io::Result<f64> {
         let mut samples: Vec<f64> = (0..sample_count)
             .map(move |_| self.get_voltage(channel))
             .collect::<Result<_, _>>()?;
@@ -61,6 +60,7 @@ impl MCP320X {
         Ok(*median)
     }
 
+    /// Get the packet to transmit.
     fn get_tx(channel: Channel) -> [u8; 3] {
         let channel = channel as u8;
         [
@@ -70,6 +70,7 @@ impl MCP320X {
         ]
     }
 
+    /// Parse the received packet for the raw measurement
     fn parse_rx(rx: [u8; 3]) -> u16 {
         // rx = { [0bZZZZ_ZZZZ], [0bZZZ(null)_(B11)(B10)(B9)(B8)], [0b(B7)(B6)(B5)(B4)_(B3)(B2)(B1)(B0)] }
         let rx1 = (rx[1] & 0x0F) as u16;

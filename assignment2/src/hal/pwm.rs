@@ -1,7 +1,11 @@
+/**
+ * Hardware interface for linux PWM peripherals.
+ */
 use std::fmt::Display;
 use std::io::{self, Write};
 use std::{fs, path, time};
 
+/// Physical frequency
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Frequency(u64);
 
@@ -21,6 +25,7 @@ impl Display for Frequency {
     }
 }
 
+/// Open a file temporarily and write the value.
 fn write_sysfs<P: AsRef<path::Path>>(path: P, value: &[u8]) -> io::Result<()> {
     let mut file = fs::OpenOptions::new().write(true).open(path)?;
     file.write_all(value)?;
@@ -28,6 +33,7 @@ fn write_sysfs<P: AsRef<path::Path>>(path: P, value: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
+/// PWM interface for linux. Allows control of the output frequency.
 pub struct Pwm {
     path: path::PathBuf,
 

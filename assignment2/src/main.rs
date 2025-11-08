@@ -52,7 +52,7 @@ fn main() -> anyhow::Result<()> {
     socket.set_nonblocking(true)?;
     let mut sampler = Sampler::new();
     let mut led = pwm::Pwm::new(PWM_PATH);
-    let mut encoder = encoder::Encoder::start(0, 600)?;
+    let mut encoder = encoder::Encoder::new(0, 600, 10)?;
 
     let (sample_tx, sample_rx) = sync::mpsc::channel();
     let (sample_kill_tx, sample_kill_rx) = sync::mpsc::channel::<()>();
@@ -69,7 +69,7 @@ fn main() -> anyhow::Result<()> {
                 continue;
             }
 
-            let voltage: f64 = adc.get_mean_voltage(mcp320x::Channel::CH0, 10)?;
+            let voltage: f64 = adc.get_median_voltage(mcp320x::Channel::CH0, 10)?;
             sample_tx.send(sampler::Sample::new(voltage, now))?;
             previous = Some(now);
 

@@ -1,5 +1,9 @@
+/**
+ * Hardware interface for the quadrature encoder. Polling happens on a seperate thread.
+ */
 use std::{sync::mpsc, thread};
 
+/// Encoder direction pulse
 enum Pulse {
     Cw,
     Ccw,
@@ -14,6 +18,7 @@ impl Pulse {
     }
 }
 
+/// Quadrature encoder that is polled on a seperate thread.
 pub struct Encoder {
     data_rx: mpsc::Receiver<Pulse>,
     kill_tx: mpsc::Sender<()>,
@@ -24,7 +29,8 @@ pub struct Encoder {
 }
 
 impl Encoder {
-    pub fn start(limit_min: i32, limit_max: i32) -> std::io::Result<Self> {
+    /// Create an encoder that is polled on a seperate thread. It has a limited range of allowed values.
+    pub fn new(limit_min: i32, limit_max: i32, initial: i32) -> std::io::Result<Self> {
         let (data_tx, data_rx) = mpsc::channel::<Pulse>();
         let (kill_tx, kill_rx) = mpsc::channel::<()>();
 
@@ -69,12 +75,13 @@ impl Encoder {
             kill_tx,
             data_rx,
             handle,
-            offset: 0,
+            offset: initial,
             limit_max,
             limit_min,
         })
     }
 
+    /// Get the current position of the encoder.
     pub fn get_offset(&mut self) -> i32 {
         self.offset = self
             .offset
@@ -84,6 +91,7 @@ impl Encoder {
         self.offset
     }
 
+    /// Stop the polling thread.
     pub fn end(self) -> anyhow::Result<()> {
         self.kill_tx.send(())?;
         self.handle

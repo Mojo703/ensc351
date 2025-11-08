@@ -1,5 +1,9 @@
+/**
+ * Tool for collecting samples over time, and calculating metrics.
+ */
 use std::{fmt::Display, time};
 
+/// A single sensor sample in time
 #[derive(Debug, Clone, Copy)]
 pub struct Sample {
     voltage: f64,
@@ -12,6 +16,7 @@ impl Sample {
     }
 }
 
+/// Container for samples
 #[derive(Debug)]
 pub struct Sampler {
     total: u128,
@@ -20,6 +25,7 @@ pub struct Sampler {
     samples: Vec<Sample>,
 }
 
+/// Metrics for sampling jitter
 pub struct JitterInfo {
     max: time::Duration,
     min: time::Duration,
@@ -41,6 +47,7 @@ impl Display for JitterInfo {
 }
 
 impl Sampler {
+    /// Create a basic sampler with history period of 1.0 second.
     pub fn new() -> Self {
         Self {
             total: 0,
@@ -50,7 +57,7 @@ impl Sampler {
         }
     }
 
-    // Add multiple samples to the history
+    /// Add multiple samples to the history
     pub fn extend_samples<I: IntoIterator<Item = Sample>>(
         &mut self,
         samples: I,
@@ -73,18 +80,19 @@ impl Sampler {
         }
     }
 
+    /// Remove samples older than the period
     fn cull_old_samples(&mut self, now: time::Instant) {
         let cutoff = now - self.period;
         let idx = self.samples.partition_point(|s| s.time < cutoff);
         self.samples.drain(..idx);
     }
 
-    // Get the number of samples collected during the previous complete second.
+    /// Get the number of samples collected during the previous complete second.
     pub fn history_size(&self, now: time::Instant) -> usize {
         self.history(now).count()
     }
 
-    // Get a copy of the samples in the sample history.
+    /// Get a copy of the samples in the sample history.
     pub fn history(&self, now: time::Instant) -> impl Iterator<Item = f64> {
         self.samples
             .iter()
@@ -94,17 +102,17 @@ impl Sampler {
             })
     }
 
-    // Get the total number of light level samples taken so far.
+    /// Get the total number of light level samples taken so far.
     pub fn get_total_samples(&self) -> u128 {
         self.total
     }
 
-    // Get the running average voltage
+    /// Get the running average voltage
     pub fn get_avg(&self) -> Option<f64> {
         self.avg
     }
 
-    // Count the number of falling edges in the history
+    /// Count the number of falling edges in the history
     pub fn get_dips_count(&self, now: time::Instant) -> usize {
         enum State {
             High,
@@ -127,9 +135,9 @@ impl Sampler {
             .1
     }
 
-    // Calculate the jitter information (statistics on the time between samples).
+    /// Calculate the jitter information (statistics on the time between samples).
     pub fn get_jitter_info(&self, now: time::Instant) -> Option<JitterInfo> {
-        HistoryStats::try_from_iter(
+        HistoryJitterStats::try_from_iter(
             self.samples
                 .windows(2)
                 .filter(|s| now - s[0].time < self.period)
@@ -139,14 +147,16 @@ impl Sampler {
     }
 }
 
-struct HistoryStats {
+/// Sampler history statistics
+struct HistoryJitterStats {
     min: time::Duration,
     max: time::Duration,
     total: time::Duration,
     count: usize,
 }
 
-impl HistoryStats {
+impl HistoryJitterStats {
+    /// Create the initial history statistics from one data point
     fn new(delta: time::Duration) -> Self {
         Self {
             min: delta,
@@ -156,12 +166,14 @@ impl HistoryStats {
         }
     }
 
+    /// Create the statistics from an iterator
     fn try_from_iter<T: IntoIterator<Item = time::Duration>>(iter: T) -> Option<Self> {
         let mut iter = iter.into_iter();
-        let stats = HistoryStats::new(iter.next()?);
+        let stats = HistoryJitterStats::new(iter.next()?);
         Some(iter.fold(stats, |prev, delta| prev.update(delta)))
     }
 
+    /// Update the statistics to include a new data point
     fn update(self, delta: time::Duration) -> Self {
         let min = self.min.min(delta);
         let max = self.max.max(delta);
@@ -176,9 +188,9 @@ impl HistoryStats {
     }
 }
 
-impl From<HistoryStats> for JitterInfo {
-    fn from(value: HistoryStats) -> Self {
-        let HistoryStats {
+impl From<HistoryJitterStats> for JitterInfo {
+    fn from(value: HistoryJitterStats) -> Self {
+        let HistoryJitterStats {
             min,
             max,
             total,
