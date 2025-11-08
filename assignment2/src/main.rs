@@ -5,9 +5,6 @@ use hal::{encoder, mcp320x, pwm};
 use sampler::Sampler;
 use std::io;
 use std::net;
-use std::sync;
-use std::sync::mpsc;
-use std::thread;
 use std::time;
 
 #[derive(Debug, Clone, Copy)]
@@ -54,31 +51,7 @@ fn main() -> anyhow::Result<()> {
     let mut led = pwm::Pwm::new(PWM_PATH);
     let mut encoder = encoder::Encoder::new(0, 600, 10)?;
 
-    let (sample_tx, sample_rx) = sync::mpsc::channel();
-    let (sample_kill_tx, sample_kill_rx) = sync::mpsc::channel::<()>();
-
-    let sample_thread = thread::spawn::<_, anyhow::Result<()>>(move || {
-        let mut adc = mcp320x::MCP320X::new("/dev/spidev0.0", 3.3)?;
-
-        let period = time::Duration::from_millis(1);
-        let mut previous = None;
-        loop {
-            let now = time::Instant::now();
-
-            if previous.is_some_and(|prev| now - prev < period) {
-                continue;
-            }
-
-            let voltage: f64 = adc.get_median_voltage(mcp320x::Channel::CH0, 10)?;
-            sample_tx.send(sampler::Sample::new(voltage, now))?;
-            previous = Some(now);
-
-            match sample_kill_rx.try_recv() {
-                Err(mpsc::TryRecvError::Empty) => {}
-                Ok(_) | Err(mpsc::TryRecvError::Disconnected) => break Ok(()),
-            };
-        }
-    });
+    let (sample_thread, sample_rx, sample_kill_tx) = mcp320x::make_sample_thread();
 
     led.init()?;
 
