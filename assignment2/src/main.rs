@@ -40,6 +40,7 @@ impl TryFrom<String> for Command {
 }
 
 fn main() -> anyhow::Result<()> {
+    const ADC_PATH: &str = "/dev/spidev0.0";
     const PWM_PATH: &str = "/dev/hat/pwm/GPIO16";
     const UDP_ADDR: &str = "0.0.0.0:12345";
     const UDP_BUF_SIZE: usize = 1024;
@@ -51,7 +52,9 @@ fn main() -> anyhow::Result<()> {
     let mut led = pwm::Pwm::new(PWM_PATH);
     let mut encoder = encoder::Encoder::new(0, 600, 10)?;
 
-    let (sample_thread, sample_rx, sample_kill_tx) = mcp320x::make_sample_thread();
+    let adc = mcp320x::MCP320X::new(ADC_PATH, 3.3)?;
+    let (sample_thread, sample_rx, sample_kill_tx) =
+        adc.make_sample_thread(mcp320x::Channel::CH0, 10);
 
     led.init()?;
 
@@ -66,27 +69,7 @@ fn main() -> anyhow::Result<()> {
         sampler.extend_samples(sample_rx.try_iter(), now);
 
         if last_report.is_none_or(|last_report| now - last_report > REPORT_PERIOD) {
-            let sample_count = sampler.history_size(now);
-            let avg = sampler.get_avg();
-            let dips = sampler.get_dips_count(now);
-            let jitter = sampler.get_jitter_info(now);
-
-            if let Some((avg, jitter)) = avg.zip(jitter) {
-                let history: Vec<f64> = sampler.history(now).collect();
-
-                println!(
-                    "#Smpl/s = {sample_count:<4} Flash @ {pwm_freq:<7} avg = {avg:<4.3}V dips={dips:<3} {jitter}",
-                );
-
-                println!(
-                    "{}",
-                    (0..10)
-                        .map(|i| i * (history.len() - 1) / 9)
-                        .map(|i| format!("{i:>4}:{:<5.3} ", history[i]))
-                        .collect::<String>()
-                );
-            }
-
+            log_current(&sampler, pwm_freq, now);
             last_report = Some(now);
         }
 
@@ -122,6 +105,29 @@ fn main() -> anyhow::Result<()> {
     encoder.end()?;
 
     Ok(())
+}
+
+fn log_current(sampler: &sampler::Sampler, pwm_freq: pwm::Frequency, now: time::Instant) {
+    let sample_count = sampler.history_size(now);
+    let avg = sampler.get_avg();
+    let dips = sampler.get_dips_count(now);
+    let jitter = sampler.get_jitter_info(now);
+
+    if let Some((avg, jitter)) = avg.zip(jitter) {
+        let history: Vec<f64> = sampler.history(now).collect();
+
+        println!(
+            "#Smpl/s = {sample_count:<4} Flash @ {pwm_freq:<7} avg = {avg:<4.3}V dips={dips:<3} {jitter}",
+        );
+
+        println!(
+            "{}",
+            (0..10)
+                .map(|i| i * (history.len() - 1) / 9)
+                .map(|i| format!("{i:>4}:{:<5.3} ", history[i]))
+                .collect::<String>()
+        );
+    }
 }
 
 enum CommandsResult {

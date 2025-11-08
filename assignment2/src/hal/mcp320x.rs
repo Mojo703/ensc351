@@ -20,6 +20,8 @@ pub struct MCP320X {
 }
 
 impl MCP320X {
+    pub const MAX_RAW: u16 = 4096;
+
     /// Open a connection with an MCP320X over SPI.
     pub fn new<P: AsRef<std::path::Path>>(path: P, vref: f64) -> io::Result<Self> {
         let mut spi = Spidev::open(path)?;
@@ -47,7 +49,7 @@ impl MCP320X {
     /// Get a single voltage measurement from the ADC. Based on the assumed vref.
     pub fn get_voltage(&mut self, channel: Channel) -> io::Result<f64> {
         self.get(channel)
-            .map(|sample| sample as f64 * self.vref / 4096.0)
+            .map(|sample| sample as f64 * self.vref / Self::MAX_RAW as f64)
     }
 
     /// Collect many voltage samples, and calculate the median. Used to counteract noise and bad readings.
@@ -79,39 +81,41 @@ impl MCP320X {
         let rx2 = rx[2] as u16;
         (rx1 << 8) | rx2
     }
-}
 
-/// Create the thread for sampling from the ADC.
-pub fn make_sample_thread() -> (
-    thread::JoinHandle<anyhow::Result<()>>,
-    mpsc::Receiver<sampler::Sample>,
-    mpsc::Sender<()>,
-) {
-    let (data, sample_rx) = mpsc::channel();
-    let (sample_kill_tx, kill) = mpsc::channel::<()>();
+    /// Create the thread for sampling from the ADC.
+    pub fn make_sample_thread(
+        mut self,
+        channel: Channel,
+        oversample_count: usize,
+    ) -> (
+        thread::JoinHandle<anyhow::Result<()>>,
+        mpsc::Receiver<sampler::Sample>,
+        mpsc::Sender<()>,
+    ) {
+        let (data, sample_rx) = mpsc::channel();
+        let (sample_kill_tx, kill) = mpsc::channel::<()>();
 
-    let handle = thread::spawn::<_, anyhow::Result<()>>(move || {
-        let mut adc = MCP320X::new("/dev/spidev0.0", 3.3)?;
+        let handle = thread::spawn::<_, anyhow::Result<()>>(move || {
+            let period = time::Duration::from_millis(1);
+            let mut previous = None;
+            loop {
+                let now = time::Instant::now();
 
-        let period = time::Duration::from_millis(1);
-        let mut previous = None;
-        loop {
-            let now = time::Instant::now();
+                if previous.is_some_and(|prev| now - prev < period) {
+                    continue;
+                }
 
-            if previous.is_some_and(|prev| now - prev < period) {
-                continue;
+                let voltage: f64 = self.get_median_voltage(channel, oversample_count)?;
+                data.send(sampler::Sample::new(voltage, now))?;
+                previous = Some(now);
+
+                match kill.try_recv() {
+                    Err(mpsc::TryRecvError::Empty) => {}
+                    Ok(_) | Err(mpsc::TryRecvError::Disconnected) => break Ok(()),
+                };
             }
+        });
 
-            let voltage: f64 = adc.get_median_voltage(Channel::CH0, 10)?;
-            data.send(sampler::Sample::new(voltage, now))?;
-            previous = Some(now);
-
-            match kill.try_recv() {
-                Err(mpsc::TryRecvError::Empty) => {}
-                Ok(_) | Err(mpsc::TryRecvError::Disconnected) => break Ok(()),
-            };
-        }
-    });
-
-    (handle, sample_rx, sample_kill_tx)
+        (handle, sample_rx, sample_kill_tx)
+    }
 }
