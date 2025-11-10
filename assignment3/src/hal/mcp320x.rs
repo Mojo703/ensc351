@@ -1,7 +1,7 @@
 /**
  * Hardware interface for the MCP320X line of SPI ADCs.
  */
-use std::io;
+use std::{fmt::Display, io};
 
 use linux_embedded_hal::spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
 
@@ -9,6 +9,17 @@ use linux_embedded_hal::spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTran
 #[derive(Debug, Clone, Copy)]
 pub enum Channel {
     CH0 = 0,
+    CH1 = 1,
+}
+
+impl Display for Channel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            Self::CH0 => "CH0",
+            Self::CH1 => "CH1",
+        };
+        writeln!(f, "{}", text)
+    }
 }
 
 /// MCP320X connected over SPI, with an assumed Vref.
