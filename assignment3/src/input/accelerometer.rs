@@ -2,12 +2,7 @@ use crate::hal::mcp320x::{Channel, MCP320X};
 
 type Acceleration = f64;
 
-#[derive(Debug, Clone, Copy)]
-pub struct Measurement {
-    x: Acceleration,
-    y: Acceleration,
-    z: Acceleration,
-}
+type Measurement = [Acceleration; 3];
 
 pub struct Accelerometer {
     x_axis: Channel,
@@ -31,13 +26,17 @@ impl Accelerometer {
     }
 
     pub fn get(&self, adc: &mut MCP320X) -> Option<Measurement> {
-        match [self.x_axis, self.y_axis, self.z_axis].map(|channel| {
+        match self.channels().map(|channel| {
             adc.get_voltage_median(channel, self.sample_count)
                 .map(|voltage| voltage / self.voltage_per_g)
                 .ok()
         }) {
-            [Some(x), Some(y), Some(z)] => Some(Measurement { x, y, z }),
+            [Some(x), Some(y), Some(z)] => Some([x, y, z]),
             _ => None,
         }
+    }
+
+    fn channels(&self) -> [Channel; 3] {
+        [self.x_axis, self.y_axis, self.z_axis]
     }
 }
