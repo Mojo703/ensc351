@@ -10,6 +10,12 @@ use linux_embedded_hal::spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTran
 pub enum Channel {
     CH0 = 0,
     CH1 = 1,
+    CH2 = 2,
+    CH3 = 3,
+    CH4 = 4,
+    CH5 = 5,
+    CH6 = 6,
+    CH7 = 7,
 }
 
 impl Display for Channel {
@@ -17,6 +23,12 @@ impl Display for Channel {
         let text = match self {
             Self::CH0 => "CH0",
             Self::CH1 => "CH1",
+            Self::CH2 => "CH2",
+            Self::CH3 => "CH3",
+            Self::CH4 => "CH4",
+            Self::CH5 => "CH5",
+            Self::CH6 => "CH6",
+            Self::CH7 => "CH7",
         };
         writeln!(f, "{}", text)
     }
@@ -56,15 +68,15 @@ impl MCP320X {
     }
 
     /// Get a single voltage measurement from the ADC. Based on the assumed vref.
-    pub fn get_voltage(&mut self, channel: Channel) -> io::Result<f64> {
+    pub fn get_voltage_single(&mut self, channel: Channel) -> io::Result<f64> {
         self.get(channel)
             .map(|sample| sample as f64 * self.vref / Self::MAX_RAW as f64)
     }
 
     /// Collect many voltage samples, and calculate the median. Used to counteract noise and bad readings.
-    pub fn get_median_voltage(&mut self, channel: Channel, sample_count: usize) -> io::Result<f64> {
+    pub fn get_voltage_median(&mut self, channel: Channel, sample_count: usize) -> io::Result<f64> {
         let mut samples: Vec<f64> = (0..sample_count)
-            .map(move |_| self.get_voltage(channel))
+            .map(move |_| self.get_voltage_single(channel))
             .collect::<Result<_, _>>()?;
 
         let mid = sample_count / 2;
