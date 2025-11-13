@@ -75,8 +75,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut score = Score::standard();
     let bpm = 100.0;
 
+    pcm.prepare()?;
+    let start = Instant::now();
     loop {
         let now = Instant::now();
+        // Play for 10 seconds
+        if (now - start).as_secs_f64() > 20.0 {
+            break;
+        }
+
         for &handle in score
             .update(bpm, now)
             .into_iter()
@@ -87,4 +94,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         playback.update(&pcm)?;
     }
+    pcm.drain()?;
+
+    Ok(())
 }
