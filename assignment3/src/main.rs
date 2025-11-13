@@ -1,12 +1,15 @@
+use std::time::Instant;
+
 use crate::{
     hal::{encoder::Encoder, mcp320x::MCP320X},
     input::{accelerometer::Accelerometer, drumkit::Drumkit, joystick::Joystick},
+    sound::score::Score,
 };
 use hal::mcp320x::Channel as C;
 
-pub mod audio;
 pub mod hal;
 pub mod input;
+pub mod sound;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut adc = MCP320X::new("/dev/spidev0.0", 3.3)?;
@@ -37,6 +40,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("joystick reading: {:?}", joystick.get(&mut adc));
     println!("drumkit events: {:?}", drumkit.get(&mut adc));
+
+    let mut score = Score::standard();
+    let bpm = 100.0;
+
+    loop {
+        let now = Instant::now();
+        let notes = score.update(bpm, now);
+    }
 
     Ok(())
 }
