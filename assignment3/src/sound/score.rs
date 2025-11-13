@@ -65,6 +65,7 @@ impl Score {
                         if end > start {
                             time > start && time <= end
                         } else {
+                            // Handle looping
                             (time > start && time <= loop_len) || (time >= 0.0 && time <= end)
                         }
                     })

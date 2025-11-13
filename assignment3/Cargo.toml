@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+alsa = "0.10.0"
 gpiod = "0.3.0"
+hound = "3.5.1"
 linux-embedded-hal = "0.4.1"
