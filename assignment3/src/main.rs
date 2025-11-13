@@ -1,6 +1,6 @@
 use crate::{
     hal::{encoder::Encoder, mcp320x::MCP320X},
-    input::accelerometer::Accelerometer,
+    input::{accelerometer::Accelerometer, joystick::Joystick},
 };
 use hal::mcp320x::Channel as C;
 
@@ -22,7 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Encoder::new(0, 100, 10, pins)
     }?;
 
-    let acc_meter = Accelerometer::new(C::CH0, C::CH1, C::CH2, 3.3);
+    let joystick = Joystick::new(C::CH0, C::CH1);
+    let acc_meter = Accelerometer::new(C::CH2, C::CH3, C::CH4, 3.3);
 
     for channel in [C::CH0, C::CH1] {
         println!(
@@ -33,6 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Encoder offset: {}", encoder.get_offset());
 
+    println!("joystick reading: {:?}", joystick.get(&mut adc));
     println!("Accelerometer reading: {:?}", acc_meter.get(&mut adc));
 
     Ok(())

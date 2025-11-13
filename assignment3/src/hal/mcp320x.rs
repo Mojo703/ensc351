@@ -56,33 +56,38 @@ impl MCP320X {
         Ok(Self { spi, vref })
     }
 
-    /// Get a single raw measurement from the ADC.
-    pub fn get(&mut self, channel: Channel) -> io::Result<u16> {
+    /// Get a single measurement from the ADC. Scaled to [0.0, 1.0)
+    pub fn get_single(&mut self, channel: Channel) -> io::Result<f64> {
         let tx_buf = Self::get_tx(channel);
         let mut rx_buf = [0; 3];
 
         let mut transfer = SpidevTransfer::read_write(&tx_buf, &mut rx_buf);
         self.spi.transfer(&mut transfer)?;
 
-        Ok(Self::parse_rx(rx_buf))
+        Ok(Self::parse_rx(rx_buf) as f64 / Self::MAX_RAW as f64)
     }
 
-    /// Get a single voltage measurement from the ADC. Based on the assumed vref.
-    pub fn get_voltage_single(&mut self, channel: Channel) -> io::Result<f64> {
-        self.get(channel)
-            .map(|sample| sample as f64 * self.vref / Self::MAX_RAW as f64)
-    }
-
-    /// Collect many voltage samples, and calculate the median. Used to counteract noise and bad readings.
-    pub fn get_voltage_median(&mut self, channel: Channel, sample_count: usize) -> io::Result<f64> {
-        let mut samples: Vec<f64> = (0..sample_count)
-            .map(move |_| self.get_voltage_single(channel))
+    /// Get the median of multiple measurements from the ADC. Scaled to [0.0, 1.0)
+    pub fn get_median(&mut self, channel: Channel, sample_count: usize) -> io::Result<f64> {
+        let mut samples: Vec<_> = (0..sample_count)
+            .map(move |_| self.get_single(channel))
             .collect::<Result<_, _>>()?;
 
         let mid = sample_count / 2;
         let (_, median, _) = samples.select_nth_unstable_by(mid, |a, b| a.partial_cmp(b).unwrap());
 
         Ok(*median)
+    }
+
+    /// Get a single voltage measurement from the ADC. Based on the assumed vref.
+    pub fn get_voltage_single(&mut self, channel: Channel) -> io::Result<f64> {
+        self.get_single(channel).map(|sample| sample * self.vref)
+    }
+
+    /// Collect many voltage samples, and calculate the median. Used to counteract noise and bad readings.
+    pub fn get_voltage_median(&mut self, channel: Channel, sample_count: usize) -> io::Result<f64> {
+        self.get_median(channel, sample_count)
+            .map(|sample| sample * self.vref)
     }
 
     /// Get the packet to transmit.
