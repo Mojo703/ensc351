@@ -2,7 +2,11 @@ use std::{collections::HashMap, time::Instant};
 
 use crate::{
     hal::{encoder::Encoder, mcp320x::MCP320X},
-    input::{accelerometer::Accelerometer, drumkit::Drumkit, joystick::Joystick},
+    input::{
+        accelerometer::Accelerometer,
+        drumkit::{self, Drumkit},
+        joystick::Joystick,
+    },
     sound::{
         Instrument, load_wav,
         playback::{InstrumentHandle, Playback},
@@ -70,7 +74,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Encoder offset: {}", encoder.get_offset());
 
     println!("joystick reading: {:?}", joystick.get(&mut adc));
-    println!("drumkit events: {:?}", drumkit.get(&mut adc));
 
     let mut score = Score::standard();
     let bpm = 100.0;
@@ -84,11 +87,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
 
-        for &handle in score
-            .update(bpm, now)
-            .into_iter()
-            .filter_map(|note| sound_handles.get(&note.instrument))
-        {
+        // Get the score events
+        let events = score.update(bpm, now).into_iter().map(|e| e.instrument);
+
+        // Get the drumkit events
+        let events = events.chain(drumkit.get(&mut adc).into_iter().map(|event| match event {
+            drumkit::Event::A => Instrument::Snare,
+            drumkit::Event::B => Instrument::HiHat,
+            drumkit::Event::C => Instrument::BassDrum,
+        }));
+
+        for &handle in events.filter_map(|instrument| sound_handles.get(&instrument)) {
             playback.start_sound(handle);
         }
 
