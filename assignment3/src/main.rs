@@ -8,7 +8,7 @@ use crate::{
     input::{
         accelerometer::Accelerometer,
         drumkit::{self, Drumkit},
-        joystick::Joystick,
+        joystick::{self, Joystick},
     },
     sound::{
         Instrument, load_wav,
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let button = chip.request_lines(button)?;
 
         (
-            Encoder::new(0, 100, 25, encoder)?,
+            Encoder::new(40, 300, 120, encoder)?,
             Button::new(
                 button,
                 Duration::from_millis(20),
@@ -79,19 +79,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|(instrument, path)| (instrument, playback.add_instrument(load_wav(path))))
         .collect();
 
-    for channel in [C::CH0, C::CH1] {
-        println!(
-            "ADC value {channel}: {}V",
-            adc.get_voltage_median(channel, 10)?
-        );
-    }
-
-    println!("joystick reading: {:?}", joystick.get(&mut adc));
-
     let score_choices = [Score::standard, Score::funky];
     let mut score = Score::standard();
     let mut score_index = 0;
-    let bpm = 100.0;
+    let mut volume = 80.0;
 
     pcm.prepare()?;
     let start = Instant::now();
@@ -101,6 +92,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if (now - start).as_secs_f64() > 20.0 {
             break;
         }
+
+        // Handle changing volume
+        match joystick.get(&mut adc) {
+            Some(joystick::State::Up) => volume += 5.0,
+            Some(joystick::State::Down) => volume -= 5.0,
+            _ => {}
+        }
+
+        // Handle bpm update
+        let bpm = encoder.get_offset() as f64;
 
         // Handle changing the chosen score.
         if matches!(button.update(now), Some(_)) {
@@ -122,7 +123,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             playback.start_sound(handle);
         }
 
-        let volume = encoder.get_offset() as f64 / 100.0;
         playback.update(&pcm, volume)?;
     }
     pcm.drain()?;
