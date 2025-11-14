@@ -1,7 +1,14 @@
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use crate::{
-    hal::{encoder::Encoder, mcp320x::MCP320X},
+    hal::{
+        button::{self, Button},
+        encoder::Encoder,
+        mcp320x::MCP320X,
+    },
     input::{
         accelerometer::Accelerometer,
         drumkit::{self, Drumkit},
@@ -37,17 +44,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     let mut adc = MCP320X::new("/dev/spidev0.0", 3.3)?;
-    let mut encoder = {
+    let (mut encoder, mut button) = {
         use gpiod::*;
         let chip = Chip::new("gpiochip0")?;
 
-        let pins = Options::input([7, 10])
+        let encoder = Options::input([7, 10])
             .active(Active::High)
             .bias(Bias::PullDown);
-        let pins = chip.request_lines(pins)?;
+        let encoder = chip.request_lines(encoder)?;
+        let button = Options::input([7, 10])
+            .active(Active::High)
+            .bias(Bias::PullDown);
+        let button = chip.request_lines(button)?;
 
-        Encoder::new(0, 100, 10, pins)
-    }?;
+        (
+            Encoder::new(0, 100, 10, encoder)?,
+            Button::new(
+                button,
+                Duration::from_millis(20),
+                Duration::from_millis(250),
+                Duration::from_millis(100),
+            )?,
+        )
+    };
 
     let pcm = PCM::new("default", Direction::Playback, false)?;
 
@@ -75,7 +94,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("joystick reading: {:?}", joystick.get(&mut adc));
 
+    let score_choices = [Score::standard, Score::funky];
     let mut score = Score::standard();
+    let mut score_index = 0;
     let bpm = 100.0;
 
     pcm.prepare()?;
@@ -85,6 +106,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Play for 10 seconds
         if (now - start).as_secs_f64() > 20.0 {
             break;
+        }
+
+        // Handle changing the chosen score.
+        if matches!(button.update(now), Some(_)) {
+            score_index += 1;
+            score = score_choices[score_index % score_choices.len()]();
         }
 
         // Get the score events
