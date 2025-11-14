@@ -40,6 +40,30 @@ impl Score {
         }
     }
 
+    pub fn funky() -> Self {
+        let hihat = Track {
+            instrument: Instrument::HiHat,
+            notes: vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.5, 6.0, 7.0, 7.5],
+        };
+
+        let snare = Track {
+            instrument: Instrument::Snare,
+            notes: vec![2.0, 6.0],
+        };
+
+        let bassdrum = Track {
+            instrument: Instrument::BassDrum,
+            notes: vec![0.0, 3.0, 4.0, 7.0],
+        };
+
+        Self {
+            tracks: vec![hihat, snare, bassdrum],
+            length: 8.0,
+            prev: None,
+            beat_time: 0.0,
+        }
+    }
+
     pub fn update(&mut self, bpm: f64, now: Instant) -> Vec<NoteEvent> {
         let Some(prev) = self.prev else {
             self.prev = Some(now);
