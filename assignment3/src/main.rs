@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use crate::{
     hal::{button::Button, encoder::Encoder, mcp320x::MCP320X},
@@ -10,11 +7,7 @@ use crate::{
         drumkit::{self, Drumkit},
         joystick::{self, Joystick},
     },
-    sound::{
-        Instrument, load_wav,
-        playback::{InstrumentHandle, Playback},
-        score::Score,
-    },
+    sound::{Instrument, load_wav, playback::Playback, score::Score},
 };
 use alsa::{Direction, PCM};
 use hal::mcp320x::Channel as C;
@@ -66,18 +59,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let pcm = PCM::new("default", Direction::Playback, false)?;
 
-    let channels = 2;
+    let channels = 1;
     let rate = 44100;
 
-    let mut playback = Playback::new(&pcm, channels, rate, channels as usize * 1000)?;
+    let mut playback = Playback::new(&pcm, channels, rate, channels as usize * 4000)?;
     let joystick = Joystick::new(C::CH0, C::CH1);
     let acc = Accelerometer::new(C::CH2, C::CH3, C::CH4, 3.3);
     let drumkit = Drumkit::new(acc, [1.0, 1.0, 2.0]);
 
-    let sound_handles: HashMap<Instrument, InstrumentHandle> = instruments
-        .into_iter()
-        .map(|(instrument, path)| (instrument, playback.add_instrument(load_wav(path))))
-        .collect();
+    for (instrument, path) in instruments {
+        playback.add_instrument(load_wav(path), instrument);
+    }
 
     let score_choices = [Score::standard, Score::funky];
     let mut score = Score::standard();
@@ -85,18 +77,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut volume = 80.0;
 
     pcm.prepare()?;
-    let start = Instant::now();
     loop {
         let now = Instant::now();
-        // Play for 10 seconds
-        if (now - start).as_secs_f64() > 20.0 {
-            break;
-        }
 
         // Handle changing volume
         match joystick.get(&mut adc) {
             Some(joystick::State::Up) => volume += 5.0,
             Some(joystick::State::Down) => volume -= 5.0,
+            Some(joystick::State::Left) => {
+                break; // Exit from the program
+            }
             _ => {}
         }
 
@@ -119,8 +109,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             drumkit::Event::C => Instrument::BassDrum,
         }));
 
-        for &handle in events.filter_map(|instrument| sound_handles.get(&instrument)) {
-            playback.start_sound(handle);
+        for instrument in events {
+            playback.start_sound(instrument);
         }
 
         playback.update(&pcm, volume)?;

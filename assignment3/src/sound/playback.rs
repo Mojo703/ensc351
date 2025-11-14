@@ -1,19 +1,16 @@
-use std::rc::Rc;
+use std::{collections::HashMap, hash::Hash, rc::Rc};
 
 use alsa::{PCM, pcm};
 
-#[derive(Debug, Clone, Copy)]
-pub struct InstrumentHandle(usize);
-
-pub struct PlayingSound {
+pub struct PlayingSound<H> {
     pos: usize,
-    handle: InstrumentHandle,
+    handle: H,
 }
 
-pub struct Playback<'a> {
-    instruments: Vec<Rc<[i16]>>,
+pub struct Playback<'a, H> {
+    instruments: HashMap<H, Rc<[i16]>>,
 
-    playing: Vec<PlayingSound>,
+    playing: Vec<PlayingSound<H>>,
 
     io: pcm::IO<'a, i16>,
 
@@ -21,7 +18,7 @@ pub struct Playback<'a> {
     buffer_frame_size: usize,
 }
 
-impl<'a> Playback<'a> {
+impl<'a, H: Hash + Eq> Playback<'a, H> {
     pub fn new(
         pcm: &'a PCM,
         channels: u32,
@@ -40,11 +37,11 @@ impl<'a> Playback<'a> {
             pcm.io_i16()?
         };
 
-        let instrument = Vec::new();
+        let instruments = HashMap::new();
         let playing = Vec::new();
 
         Ok(Playback {
-            instruments: instrument,
+            instruments,
             playing,
             io,
             channels,
@@ -52,13 +49,11 @@ impl<'a> Playback<'a> {
         })
     }
 
-    pub fn add_instrument(&mut self, sound: Rc<[i16]>) -> InstrumentHandle {
-        let index = self.instruments.len();
-        self.instruments.push(sound);
-        InstrumentHandle(index)
+    pub fn add_instrument(&mut self, sound: Rc<[i16]>, handle: H) {
+        self.instruments.insert(handle, sound);
     }
 
-    pub fn start_sound(&mut self, handle: InstrumentHandle) {
+    pub fn start_sound(&mut self, handle: H) {
         self.playing.push(PlayingSound { pos: 0, handle });
     }
 
@@ -77,7 +72,7 @@ impl<'a> Playback<'a> {
 
         // Mix currently playing instruments into buffer
         self.playing.retain_mut(|p| {
-            let sound = &self.instruments[p.handle.0];
+            let sound = &self.instruments.get(&p.handle).expect("Tried to play sound for an instrument that has not been added to the playback system.");
 
             for frame in 0..frames_to_write {
                 if p.pos >= sound.len() / self.channels as usize {
