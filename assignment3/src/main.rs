@@ -4,11 +4,7 @@ use std::{
 };
 
 use crate::{
-    hal::{
-        button::{self, Button},
-        encoder::Encoder,
-        mcp320x::MCP320X,
-    },
+    hal::{button::Button, encoder::Encoder, mcp320x::MCP320X},
     input::{
         accelerometer::Accelerometer,
         drumkit::{self, Drumkit},
@@ -58,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let button = chip.request_lines(button)?;
 
         (
-            Encoder::new(0, 100, 10, encoder)?,
+            Encoder::new(0, 100, 25, encoder)?,
             Button::new(
                 button,
                 Duration::from_millis(20),
@@ -89,8 +85,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             adc.get_voltage_median(channel, 10)?
         );
     }
-
-    println!("Encoder offset: {}", encoder.get_offset());
 
     println!("joystick reading: {:?}", joystick.get(&mut adc));
 
@@ -128,7 +122,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             playback.start_sound(handle);
         }
 
-        playback.update(&pcm)?;
+        let volume = encoder.get_offset() as f64 / 100.0;
+        playback.update(&pcm, volume)?;
     }
     pcm.drain()?;
 
