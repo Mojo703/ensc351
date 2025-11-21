@@ -16,7 +16,7 @@ pub mod hal;
 pub mod input;
 pub mod sound;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     let instruments = [
         (
             Instrument::BassDrum,
@@ -32,37 +32,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
     ];
 
-    let mut adc = MCP320X::new("/dev/spidev0.0", 3.3)?;
+    let mut adc = MCP320X::new("/dev/spidev0.0", 3.3).expect("ADC creation must work.");
     let (mut encoder, mut button) = {
         use gpiod::*;
-        let chip = Chip::new("gpiochip0")?;
+        let chip = Chip::new("gpiochip0").expect("GPIO chip must be avaliable.");
 
         let encoder = Options::input([7, 10])
             .active(Active::High)
             .bias(Bias::PullDown);
-        let encoder = chip.request_lines(encoder)?;
-        let button = Options::input([7, 10])
+        let encoder = chip
+            .request_lines(encoder)
+            .expect("Encoder pin creation must work.");
+        let button = Options::input([17])
             .active(Active::High)
             .bias(Bias::PullDown);
-        let button = chip.request_lines(button)?;
+        let button = chip
+            .request_lines(button)
+            .expect("Button pin creation must work.");
 
         (
-            Encoder::new(40, 300, 120, encoder)?,
+            Encoder::new(40, 300, 40, encoder).expect("Encoder creation must work."),
             Button::new(
                 button,
                 Duration::from_millis(20),
                 Duration::from_millis(250),
                 Duration::from_millis(100),
-            )?,
+            )
+            .expect("Button creation must work."),
         )
     };
 
-    let pcm = PCM::new("default", Direction::Playback, false)?;
+    let pcm = PCM::new("default", Direction::Playback, false).expect("PCM creation must work");
 
     let channels = 1;
     let rate = 44100;
 
-    let mut playback = Playback::new(&pcm, channels, rate, channels as usize * 4000)?;
+    let mut playback = Playback::new(&pcm, channels, rate, channels as usize * 4000)
+        .expect("Playback start must work.");
     let joystick = Joystick::new(C::CH0, C::CH1);
     let acc = Accelerometer::new(C::CH2, C::CH3, C::CH4, 3.3);
     let drumkit = Drumkit::new(acc, [1.0, 1.0, 2.0]);
@@ -76,19 +82,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut score_index = 0;
     let mut volume = 80.0;
 
-    pcm.prepare()?;
+    pcm.prepare().expect("PCM prepare must work.");
+
+    let log_period = Duration::from_millis(750);
+    let mut last_log = None;
+
     loop {
         let now = Instant::now();
 
         // Handle changing volume
-        match joystick.get(&mut adc) {
-            Some(joystick::State::Up) => volume += 5.0,
-            Some(joystick::State::Down) => volume -= 5.0,
-            Some(joystick::State::Left) => {
-                break; // Exit from the program
-            }
-            _ => {}
-        }
+        // match joystick.get(&mut adc) {
+        //     Some(joystick::State::Up) => volume += 5.0,
+        //     Some(joystick::State::Down) => volume -= 5.0,
+        //     Some(joystick::State::Left) => {
+        //         break; // Exit from the program
+        //     }
+        //     _ => {}
+        // }
 
         // Handle bpm update
         let bpm = encoder.get_offset() as f64;
@@ -113,9 +123,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             playback.start_sound(instrument);
         }
 
-        playback.update(&pcm, volume)?;
-    }
-    pcm.drain()?;
+        playback
+            .update(&pcm, volume)
+            .expect("Playback update must work.");
 
-    Ok(())
+        if last_log.is_none_or(|last| now - last >= log_period) {
+            last_log = Some(now);
+            println!(
+                "bpm: {bpm}, volume: {volume}, instruments playing: {}",
+                playback.playing_count()
+            )
+        }
+    }
+    pcm.drain().expect("PCM drain must work.");
 }

@@ -57,8 +57,12 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
         self.playing.push(PlayingSound { pos: 0, handle });
     }
 
+    pub fn playing_count(&self) -> usize {
+        self.playing.len()
+    }
+
     /// Stream small frames of audio
-    pub fn update(&mut self, pcm: &'a PCM, volume: f64) -> alsa::Result<()> {
+    pub fn update(&mut self, pcm: &'a PCM, volume: f32) -> alsa::Result<()> {
         let status = pcm.status()?;
 
         // Limit to buffer_frame_size for low latency
@@ -83,7 +87,7 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
                     let si = p.pos * self.channels as usize + ch;
                     let bi = frame * self.channels as usize + ch;
 
-                    buffer[bi] = buffer[bi].saturating_add((sound[si] as f64 * volume) as i16);
+                    buffer[bi] = buffer[bi].saturating_add((sound[si] as f32 * volume).round() as i16);
                 }
 
                 p.pos += 1;

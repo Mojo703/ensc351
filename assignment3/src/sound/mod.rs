@@ -26,7 +26,8 @@ pub fn load_wav(path: &str) -> Rc<[i16]> {
         hound::SampleFormat::Int,
         "Only integer WAV supported"
     );
-    assert!(spec.bits_per_sample == 16, "Only 16-bit WAV supported");
+    assert_eq!(spec.bits_per_sample, 16, "Only 16-bit WAV supported");
+    assert_eq!(spec.channels, 1, "Only mono WAV supported.");
 
     let samples: Vec<i16> = reader
         .into_samples::<i16>()
