@@ -70,12 +70,12 @@ impl Score {
             return Vec::new();
         };
 
-        let elapsed = now - prev;
-        let elapsed: Beat = elapsed.as_secs_f64() * (bpm / 60.0);
+        let elapsed: Beat = (now - prev).as_secs_f64() * (bpm / 60.0);
 
-        let loop_len: Beat = self.length; // loop length in beats
-        let start: Beat = (self.beat_time) % loop_len;
-        let end: Beat = (self.beat_time + elapsed) % loop_len;
+        let start: Beat = self.beat_time;
+        let end: Beat = self.beat_time + elapsed;
+
+        let offset = (start / self.length).floor() * self.length;
 
         let events = self
             .tracks
@@ -86,19 +86,20 @@ impl Score {
                     .notes
                     .iter()
                     .filter(|&&time| {
-                        if end > start {
-                            time > start && time <= end
-                        } else {
-                            // Handle looping
-                            (time > start && time <= loop_len) || (time >= 0.0 && time <= end)
-                        }
+                        let time = time + offset;
+                        time > start && time < end
                     })
                     .map(move |_| NoteEvent { instrument })
             })
             .collect();
 
         self.beat_time = end;
+        self.prev = Some(now);
 
         events
+    }
+
+    pub fn current_beat(&self) -> Beat {
+        self.beat_time
     }
 }
