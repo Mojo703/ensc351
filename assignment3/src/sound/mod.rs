@@ -36,7 +36,7 @@ pub struct NoteEvent {
     pub instrument: Instrument,
 }
 
-pub fn load_wav(path: &str) -> Rc<[i16]> {
+pub fn load_wav_mono_i16(path: &str) -> Rc<[i16]> {
     let reader = hound::WavReader::open(path).expect("Failed to open WAV file");
     let spec = reader.spec();
 

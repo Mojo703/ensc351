@@ -2,6 +2,8 @@ use std::{collections::HashMap, hash::Hash, rc::Rc};
 
 use alsa::{PCM, pcm};
 
+use crate::units::Volume;
+
 pub struct PlayingSound<H> {
     pos: usize,
     handle: H,
@@ -28,7 +30,7 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
         let io = {
             use alsa::pcm::{Access, Format, HwParams};
             // --- Setup ALSA playback device ---
-            let hwp = HwParams::any(&pcm)?;
+            let hwp = HwParams::any(pcm)?;
             hwp.set_channels(channels)?;
             hwp.set_rate(rate as u32, alsa::ValueOr::Nearest)?;
             hwp.set_format(Format::s16())?;
@@ -62,7 +64,7 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
     }
 
     /// Stream small frames of audio
-    pub fn update(&mut self, pcm: &'a PCM, volume: f32) -> alsa::Result<()> {
+    pub fn update(&mut self, pcm: &'a PCM, volume: Volume) -> alsa::Result<()> {
         let status = pcm.status()?;
 
         // Limit to buffer_frame_size for low latency
@@ -87,7 +89,7 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
                     let si = p.pos * self.channels as usize + ch;
                     let bi = frame * self.channels as usize + ch;
 
-                    buffer[bi] = buffer[bi].saturating_add((sound[si] as f32 * volume).round() as i16);
+                    buffer[bi] = buffer[bi].saturating_add((sound[si] as f32 * volume.as_scale()).round() as i16);
                 }
 
                 p.pos += 1;

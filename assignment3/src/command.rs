@@ -4,12 +4,13 @@ use std::str::FromStr;
 
 use crate::sound::Instrument;
 use crate::sound::score::ScoreType;
+use crate::units::{Bpm, Volume};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     Mode(ScoreType),
-    Volume(u32),
-    Tempo(u32),
+    Volume(Volume),
+    Tempo(Bpm),
     Play(Instrument),
     Stop,
 }
@@ -26,8 +27,8 @@ impl fmt::Display for Command {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Command::Mode(n) => write!(f, "mode {}", n.to_index()),
-            Command::Volume(n) => write!(f, "volume {}", n),
-            Command::Tempo(n) => write!(f, "tempo {}", n),
+            &Command::Volume(n) => write!(f, "volume {}", u32::from(n)),
+            &Command::Tempo(n) => write!(f, "tempo {}", u32::from(n)),
             Command::Play(n) => write!(f, "play {}", n.to_index()),
             Command::Stop => write!(f, "stop"),
         }
@@ -70,10 +71,7 @@ impl FromStr for Command {
                     .parse::<u32>()
                     .map_err(|e| Error::InvalidArg("volume", e))
                     .and_then(|v| {
-                        (0..=100)
-                            .contains(&v)
-                            .then_some(v)
-                            .ok_or(Error::OutOfRangeArg("valid"))
+                        Volume::try_from(v).map_err(|_| Error::OutOfRangeArg("volume"))
                     })?;
                 Ok(Command::Volume(n))
             }
@@ -82,12 +80,7 @@ impl FromStr for Command {
                 let n = num
                     .parse::<u32>()
                     .map_err(|e| Error::InvalidArg("tempo", e))
-                    .and_then(|v| {
-                        (40..=300)
-                            .contains(&v)
-                            .then_some(v)
-                            .ok_or(Error::OutOfRangeArg("tempo"))
-                    })?;
+                    .and_then(|v| Bpm::try_from(v).map_err(|_| Error::OutOfRangeArg("tempo")))?;
 
                 Ok(Command::Tempo(n))
             }

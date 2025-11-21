@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::{hal::mcp320x::MCP320X, input::accelerometer::Accelerometer};
+use crate::{hal::mcp320x::MCP320X, input::accelerometer::Accelerometer, sound::Instrument};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Event {
@@ -11,6 +11,16 @@ pub enum Event {
 
 impl Event {
     const ALL: [Event; 3] = [Self::A, Self::B, Self::C];
+}
+
+impl From<Event> for Instrument {
+    fn from(value: Event) -> Self {
+        match value {
+            Event::A => Instrument::BassDrum,
+            Event::B => Instrument::HiHat,
+            Event::C => Instrument::Snare,
+        }
+    }
 }
 
 pub struct Drumkit {

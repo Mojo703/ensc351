@@ -1,6 +1,9 @@
 use std::time::Instant;
 
-use crate::sound::{Beat, Instrument, NoteEvent};
+use crate::{
+    sound::{Beat, Instrument, NoteEvent},
+    units::Bpm,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoreType {
@@ -107,13 +110,13 @@ impl Score {
         }
     }
 
-    pub fn update(&mut self, bpm: f64, now: Instant) -> Vec<NoteEvent> {
+    pub fn update(&mut self, bpm: Bpm, now: Instant) -> Vec<NoteEvent> {
         let Some(prev) = self.prev else {
             self.prev = Some(now);
             return Vec::new();
         };
 
-        let elapsed: Beat = (now - prev).as_secs_f64() * (bpm / 60.0);
+        let elapsed: Beat = (now - prev).as_secs_f64() * (f64::from(bpm) / 60.0);
 
         let start: Beat = self.beat_time;
         let end: Beat = self.beat_time + elapsed;

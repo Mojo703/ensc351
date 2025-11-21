@@ -18,9 +18,7 @@ impl Pulse {
 
 /// Quadrature encoder that is polled on a seperate thread.
 pub struct Encoder {
-    offset: i32,
-    limit_min: i32,
-    limit_max: i32,
+    acc: i32,
 
     pins: gpiod::Lines<gpiod::Input>,
 
@@ -29,16 +27,9 @@ pub struct Encoder {
 
 impl Encoder {
     /// Create an encoder that is polled on a seperate thread. It has a limited range of allowed values.
-    pub fn new(
-        limit_min: i32,
-        limit_max: i32,
-        initial: i32,
-        pins: gpiod::Lines<gpiod::Input>,
-    ) -> std::io::Result<Self> {
+    pub fn new(pins: gpiod::Lines<gpiod::Input>) -> std::io::Result<Self> {
         Ok(Self {
-            offset: initial,
-            limit_max,
-            limit_min,
+            acc: 0,
             pins,
             last_state: None,
         })
@@ -65,15 +56,14 @@ impl Encoder {
             _ => None,
         } {
             self.last_state = Some(state);
-            self.offset = self
-                .offset
-                .saturating_add(pulse.delta())
-                .clamp(self.limit_min, self.limit_max);
+            self.acc += pulse.delta();
         }
     }
 
-    /// Get the current position of the encoder.
-    pub fn get_offset(&mut self) -> i32 {
-        self.offset
+    /// Get the total accumulated delat
+    pub fn get_acc_delta(&mut self) -> i32 {
+        let delta = self.acc;
+        self.acc = 0;
+        delta
     }
 }
