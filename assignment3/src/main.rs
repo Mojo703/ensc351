@@ -20,7 +20,7 @@ fn main() {
     let instruments = [
         (
             Instrument::BassDrum,
-            "./sounds/100052__menegass__gui-drum-bd-soft.wav",
+            "./sounds/100051__menegass__gui-drum-bd-hard.wav",
         ),
         (
             Instrument::HiHat,
