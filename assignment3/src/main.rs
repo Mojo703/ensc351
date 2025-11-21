@@ -7,14 +7,17 @@ use crate::{
         drumkit::{self, Drumkit},
         joystick::{self, Joystick},
     },
-    sound::{Instrument, load_wav, playback::Playback, score::Score},
+    sound::{Instrument, load_wav, playback::Playback, score::ScoreType},
+    udp::UdpConn,
 };
 use alsa::{Direction, PCM};
 use hal::mcp320x::Channel as C;
 
+pub mod command;
 pub mod hal;
 pub mod input;
 pub mod sound;
+pub mod udp;
 
 fn main() {
     let instruments = [
@@ -73,14 +76,22 @@ fn main() {
     let acc = Accelerometer::new(C::CH2, C::CH3, C::CH4, 1.57, 0.42);
     let mut drumkit = Drumkit::new(acc, [2.0, 2.0, 2.0], Duration::from_millis(100));
 
+    let udp = match UdpConn::bind("127.0.0.1:12345") {
+        Ok(u) => Some(u),
+        Err(e) => {
+            eprintln!("Warning: could not bind UDP socket 127.0.0.1:12345: {}", e);
+            None
+        }
+    };
+
     for (instrument, path) in instruments {
         playback.add_instrument(load_wav(path), instrument);
     }
 
-    let score_choices = [Score::empty, Score::standard, Score::funky];
     let mut score_index = 1;
-    let mut score = score_choices[score_index % score_choices.len()]();
+    let mut score = ScoreType::from_index(score_index).apply();
     let mut volume = 0.20;
+    let mut bpm = 120.0;
 
     let mut prev_joystick = None;
     let joystick_period = Duration::from_millis(100);
@@ -108,6 +119,27 @@ fn main() {
             prev_joystick = Some((now, event));
         }
 
+        let mut events = Vec::new();
+        if let Some(ref udp) = udp {
+            match udp.try_recv_command() {
+                Ok(Some((cmd, addr))) => {
+                    println!("UDP command received from {}: {:?}", addr, cmd);
+
+                    match cmd {
+                        command::Command::Mode(new_mode) => score = new_mode.apply(),
+                        command::Command::Volume(new_volume) => volume = new_volume as f32 / 100.0,
+                        command::Command::Tempo(new_tempo) => bpm = new_tempo as f64,
+                        command::Command::Play(trigger) => {
+                            events.push(trigger);
+                        }
+                        command::Command::Stop => todo!(),
+                    }
+                }
+                Ok(None) => {}
+                Err(e) => eprintln!("UDP receive error: {}", e),
+            }
+        }
+
         // Handle bpm update
         encoder.update();
         let bpm = encoder.get_offset() as f64;
@@ -116,15 +148,15 @@ fn main() {
         if matches!(button.update(now), Some(_)) {
             score_index += 1;
             let prev_beat = score.get_beat();
-            score = score_choices[score_index % score_choices.len()]();
+            score = ScoreType::from_index(score_index).apply();
             score.set_beat(prev_beat);
         }
 
         // Get the score events
-        let events = score.update(bpm, now).into_iter().map(|e| e.instrument);
+        events.extend(score.update(bpm, now).into_iter().map(|e| e.instrument));
 
         // Get the drumkit events
-        let events = events.chain(drumkit.get(&mut adc, now).into_iter().map(|d| match d {
+        events.extend(drumkit.get(&mut adc, now).into_iter().map(|d| match d {
             drumkit::Event::A => Instrument::BassDrum,
             drumkit::Event::B => Instrument::HiHat,
             drumkit::Event::C => Instrument::Snare,

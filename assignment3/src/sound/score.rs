@@ -2,6 +2,40 @@ use std::time::Instant;
 
 use crate::sound::{Beat, Instrument, NoteEvent};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScoreType {
+    Empty,
+    Standard,
+    Funky,
+}
+
+impl ScoreType {
+    pub fn from_index(index: usize) -> Self {
+        match usize::strict_rem(index, 3) {
+            0 => ScoreType::Empty,
+            1 => ScoreType::Standard,
+            2 => ScoreType::Funky,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn to_index(self) -> usize {
+        match self {
+            ScoreType::Empty => 0,
+            ScoreType::Standard => 1,
+            ScoreType::Funky => 2,
+        }
+    }
+
+    pub fn apply(self) -> Score {
+        match self {
+            ScoreType::Empty => Score::empty(),
+            ScoreType::Standard => Score::standard(),
+            ScoreType::Funky => Score::funky(),
+        }
+    }
+}
+
 pub struct Track {
     instrument: Instrument,
     notes: Vec<Beat>,

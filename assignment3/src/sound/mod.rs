@@ -12,6 +12,25 @@ pub enum Instrument {
     BassDrum,
 }
 
+impl Instrument {
+    pub fn from_index(index: usize) -> Self {
+        match usize::strict_rem(index, 3) {
+            0 => Instrument::HiHat,
+            1 => Instrument::Snare,
+            2 => Instrument::BassDrum,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn to_index(self) -> usize {
+        match self {
+            Instrument::HiHat => 0,
+            Instrument::Snare => 1,
+            Instrument::BassDrum => 2,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct NoteEvent {
     pub instrument: Instrument,
