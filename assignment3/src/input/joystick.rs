@@ -1,6 +1,6 @@
 use crate::hal::mcp320x::{Channel, MCP320X};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum State {
     Center,
     Up,
@@ -14,7 +14,7 @@ impl State {
         let dx = (0.5 - x).abs();
         let dy = (0.5 - y).abs();
 
-        let threshold = 0.75;
+        let threshold = 0.25;
 
         if dx < threshold && dy < threshold {
             Self::Center
@@ -45,10 +45,8 @@ impl Joystick {
     }
 
     pub fn get(&self, adc: &mut MCP320X) -> Option<State> {
-        match [self.x_axis, self.y_axis]
-            .map(|channel| adc.get_voltage_median(channel, self.sample_count).ok())
-        {
-            [Some(x), Some(y)] => Some(State::new(x, y)),
+        match [self.x_axis, self.y_axis].map(|channel| adc.get_median(channel, self.sample_count)) {
+            [Ok(x), Ok(y)] => Some(State::new(x, y)),
             _ => None,
         }
     }

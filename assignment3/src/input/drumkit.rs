@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::{hal::mcp320x::MCP320X, input::accelerometer::Accelerometer};
 
 #[derive(Debug, Clone, Copy)]
@@ -8,31 +10,50 @@ pub enum Event {
 }
 
 impl Event {
-    fn all() -> [Self; 3] {
-        [Self::A, Self::B, Self::C]
-    }
+    const ALL: [Event; 3] = [Self::A, Self::B, Self::C];
 }
 
 pub struct Drumkit {
     acc: Accelerometer,
 
     thresholds: [f64; 3],
+    prev: [Option<Instant>; 3],
+
+    timeout: Duration,
 }
 
 impl Drumkit {
-    pub fn new(acc: Accelerometer, thresholds: [f64; 3]) -> Self {
-        Self { acc, thresholds }
+    pub fn new(acc: Accelerometer, thresholds: [f64; 3], timeout: Duration) -> Self {
+        Self {
+            acc,
+            thresholds,
+            prev: [None, None, None],
+            timeout,
+        }
     }
 
-    pub fn get(&self, adc: &mut MCP320X) -> Vec<Event> {
-        self.acc
-            .get(adc)
-            .map(|a| a.map(Some))
-            .unwrap_or([None, None, None])
-            .into_iter()
-            .zip(self.thresholds)
-            .zip(Event::all())
-            .filter_map(|((g, threshold), event)| g.and_then(|g| (g > threshold).then_some(event)))
-            .collect()
+    pub fn get(&mut self, adc: &mut MCP320X, now: Instant) -> Vec<Event> {
+        match self.acc.get(adc) {
+            Some(vals) => (0..3)
+                .filter_map(|i| {
+                    let val = vals[i];
+                    let threshold = self.thresholds[i];
+                    let prev = self.prev[i];
+                    let event = Event::ALL[i];
+
+                    if prev.is_some_and(|prev| now - prev < self.timeout) {
+                        return None;
+                    }
+
+                    if val > threshold {
+                        self.prev[i] = Some(now);
+                        Some(event)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            None => Vec::new(),
+        }
     }
 }

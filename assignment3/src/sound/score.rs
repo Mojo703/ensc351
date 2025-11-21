@@ -16,6 +16,15 @@ pub struct Score {
 }
 
 impl Score {
+    pub fn empty() -> Self {
+        Self {
+            tracks: vec![],
+            length: 8.0,
+            prev: None,
+            beat_time: 0.0,
+        }
+    }
+
     pub fn standard() -> Self {
         let hihat = Track {
             instrument: Instrument::HiHat,
@@ -99,7 +108,11 @@ impl Score {
         events
     }
 
-    pub fn current_beat(&self) -> Beat {
+    pub fn get_beat(&self) -> Beat {
         self.beat_time
+    }
+
+    pub fn set_beat(&mut self, beat: Beat) {
+        self.beat_time = beat;
     }
 }
