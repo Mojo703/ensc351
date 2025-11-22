@@ -172,7 +172,7 @@ impl<'a> App<'a> {
                 Direction::Left => return UpdateStatus::Quit,
                 _ => None,
             } {
-                self.set_volume(self.volume + delta);
+                self.set_volume(self.volume.saturating_add(delta));
             }
             self.prev_joystick = Some((now, event));
         }
@@ -209,7 +209,7 @@ impl<'a> App<'a> {
 
         // Handle bpm update from encoder
         self.encoder.update();
-        self.bpm = self.bpm + self.encoder.get_acc_delta();
+        self.bpm = self.bpm.saturating_add(self.encoder.get_acc_delta() as f64);
 
         // Handle changing the chosen score.
         if self.button.update(now).is_some() {

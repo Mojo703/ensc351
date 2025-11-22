@@ -13,6 +13,11 @@ impl Volume {
     pub fn as_scale(self) -> f32 {
         self.as_percentage() / 100.0
     }
+
+    /// Allow controlling the Volume with joystick
+    pub fn saturating_add(self, value: f32) -> Self {
+        Self((self.0 + value).clamp(0.0, 100.0))
+    }
 }
 
 impl TryFrom<u32> for Volume {
@@ -33,15 +38,6 @@ impl From<Volume> for u32 {
     }
 }
 
-/// Allow controlling the Volume with joystick
-impl std::ops::Add<f32> for Volume {
-    type Output = Volume;
-
-    fn add(self, rhs: f32) -> Self::Output {
-        Self(self.0 + rhs)
-    }
-}
-
 impl Display for Volume {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}%", self.0)
@@ -51,12 +47,22 @@ impl Display for Volume {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Bpm(f64);
 
+impl Bpm {
+    const MIN: f64 = 40.0;
+    const MAX: f64 = 300.0;
+
+    /// Allow accumulating the encoder values.
+    pub fn saturating_add(self, value: f64) -> Self {
+        Self((self.0 + value).clamp(Self::MIN, Self::MAX))
+    }
+}
+
 impl TryFrom<u32> for Bpm {
     type Error = ();
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         let value = value as f64;
-        (40.0..=300.0)
+        (Bpm::MIN..=Bpm::MAX)
             .contains(&value)
             .then_some(Self(value))
             .ok_or(())
@@ -72,16 +78,6 @@ impl From<Bpm> for f64 {
 impl From<Bpm> for u32 {
     fn from(value: Bpm) -> Self {
         value.0.round() as u32
-    }
-}
-
-/// Allow accumulating the encoder values.
-impl std::ops::Add<i32> for Bpm {
-    type Output = Bpm;
-
-    fn add(self, rhs: i32) -> Self::Output {
-        let rhs = rhs as f64;
-        Bpm(self.0 + rhs)
     }
 }
 
