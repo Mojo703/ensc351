@@ -64,14 +64,14 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
     }
 
     /// Stream small frames of audio
-    pub fn update(&mut self, pcm: &'a PCM, volume: Volume) -> alsa::Result<()> {
+    pub fn update(&mut self, pcm: &'a PCM, volume: Volume) -> alsa::Result<usize> {
         let status = pcm.status()?;
 
         // Limit to buffer_frame_size for low latency
         let avail = status.get_avail() as usize;
         let frames_to_write = self.buffer_frame_size.min(avail);
         if frames_to_write == 0 {
-            return Ok(());
+            return Ok(0);
         }
 
         let mut buffer = vec![0i16; frames_to_write * self.channels as usize];
@@ -101,6 +101,6 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
         // Write mixed frames to ALSA
         self.io.writei(&buffer)?;
 
-        Ok(())
+        Ok(frames_to_write)
     }
 }

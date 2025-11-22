@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{fmt::Display, time::Instant};
 
 use crate::{
     sound::{Beat, Instrument, NoteEvent},
@@ -39,6 +39,20 @@ impl ScoreType {
     }
 }
 
+impl Display for ScoreType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ScoreType::Empty => "None",
+                ScoreType::Standard => "Stnd",
+                ScoreType::Funky => "Funk",
+            }
+        )
+    }
+}
+
 pub struct Track {
     instrument: Instrument,
     notes: Vec<Beat>,
@@ -50,6 +64,8 @@ pub struct Score {
 
     prev: Option<Instant>,
     beat_time: Beat,
+
+    pub t: ScoreType,
 }
 
 impl Score {
@@ -59,6 +75,7 @@ impl Score {
             length: 8.0,
             prev: None,
             beat_time: 0.0,
+            t: ScoreType::Empty,
         }
     }
 
@@ -83,6 +100,7 @@ impl Score {
             length: 8.0,
             prev: None,
             beat_time: 0.0,
+            t: ScoreType::Standard,
         }
     }
 
@@ -107,6 +125,7 @@ impl Score {
             length: 8.0,
             prev: None,
             beat_time: 0.0,
+            t: ScoreType::Funky,
         }
     }
 

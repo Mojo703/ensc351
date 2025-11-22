@@ -7,6 +7,7 @@ use crate::{
         drumkit::Drumkit,
         joystick::{Direction, Joystick},
     },
+    sampler::{JitterInfo, Sampler},
     sound::{Instrument, load_wav_mono_i16, playback::Playback, score::ScoreType},
     udp::UdpConn,
     units::{Bpm, Volume},
@@ -17,6 +18,7 @@ use hal::mcp320x::Channel as C;
 pub mod command;
 pub mod hal;
 pub mod input;
+pub mod sampler;
 pub mod sound;
 pub mod udp;
 pub mod units;
@@ -41,6 +43,9 @@ pub struct App<'a> {
 
     last_log: Option<Instant>,
     log_period: Duration,
+
+    audio_sampler: Sampler,
+    accel_sampler: Sampler,
 }
 
 enum UpdateStatus {
@@ -125,6 +130,9 @@ impl<'a> App<'a> {
         let volume = Volume::try_from(20).unwrap();
         let bpm = Bpm::try_from(120).unwrap();
 
+        let audio_sampler = Sampler::new();
+        let accel_sampler = Sampler::new();
+
         App {
             adc,
             encoder,
@@ -145,6 +153,9 @@ impl<'a> App<'a> {
 
             last_log: None,
             log_period: Duration::from_millis(750),
+
+            audio_sampler,
+            accel_sampler,
         }
     }
 
@@ -226,12 +237,13 @@ impl<'a> App<'a> {
         );
 
         // Get the drumkit notes
-        notes.extend(
+        notes.extend({
+            self.accel_sampler.add_sample(now);
             self.drumkit
                 .get(&mut self.adc, now)
                 .into_iter()
-                .map(Instrument::from),
-        );
+                .map(Instrument::from)
+        });
 
         // Handle logging
         if self
@@ -239,30 +251,41 @@ impl<'a> App<'a> {
             .is_none_or(|last| now - last >= self.log_period)
         {
             self.last_log = Some(now);
-            self.log();
+            self.log(now);
         }
 
         for instrument in notes {
             self.playback.start_sound(instrument);
         }
 
-        self.playback
+        let audio_frames = self
+            .playback
             .update(pcm, self.volume)
             .expect("Playback update must work.");
+
+        if audio_frames > 0 {
+            self.audio_sampler.add_sample(now);
+        }
 
         UpdateStatus::Continue
     }
 
-    fn log(&mut self) {
-        let joystick_status = self.joystick.get(&mut self.adc);
+    fn log(&mut self, now: Instant) {
         println!(
-            "\nbpm: {}, volume: {}, instruments playing: {}, beat: {:.2}, joystick: {:?}, score_index: {}",
+            "{} {} {}, Audio {}, Accel {}",
+            self.score.t,
             self.bpm,
             self.volume,
-            self.playback.playing_count(),
-            self.score.get_beat(),
-            joystick_status,
-            self.score_index,
+            self.audio_sampler
+                .get_jitter_info(now)
+                .as_ref()
+                .map(JitterInfo::to_string)
+                .unwrap_or("WAIT".to_owned()),
+            self.accel_sampler
+                .get_jitter_info(now)
+                .as_ref()
+                .map(JitterInfo::to_string)
+                .unwrap_or("WAIT".to_owned()),
         );
     }
 
