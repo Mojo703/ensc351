@@ -55,6 +55,10 @@ impl Bpm {
     pub fn saturating_add(self, value: f64) -> Self {
         Self((self.0 + value).clamp(Self::MIN, Self::MAX))
     }
+
+    pub fn as_f64(self) -> f64 {
+        self.0
+    }
 }
 
 impl TryFrom<u32> for Bpm {

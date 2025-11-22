@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::{
@@ -19,6 +21,7 @@ pub mod command;
 pub mod hal;
 pub mod input;
 pub mod sampler;
+pub mod server;
 pub mod sound;
 pub mod udp;
 pub mod units;
@@ -29,7 +32,9 @@ pub struct App<'a> {
     button: Button,
     joystick: Joystick,
     drumkit: Drumkit,
+
     udp: Option<UdpConn>,
+    server: server::NodeProcess,
 
     playback: Playback<'a, Instrument>,
 
@@ -102,10 +107,18 @@ impl<'a> App<'a> {
             }
         };
 
+        let server = server::NodeProcess::new().expect("Node server.js must start.");
+
         let channels = 1;
         let rate = 44100;
-        let mut playback = Playback::new(pcm, channels, rate, channels as usize * 128)
-            .expect("Playback start must work.");
+        let mut playback = Playback::new(
+            pcm,
+            channels,
+            rate,
+            channels as usize * 128,
+            channels as usize * 512,
+        )
+        .expect("Playback start must work.");
 
         playback.add_instrument(
             load_wav_mono_i16("./sounds/100051__menegass__gui-drum-bd-hard.wav"),
@@ -122,7 +135,7 @@ impl<'a> App<'a> {
 
         let joystick = Joystick::new(C::CH0, C::CH1);
         let acc = Accelerometer::new(C::CH2, C::CH3, C::CH4, 1.57, 0.42);
-        let drumkit = Drumkit::new(acc, [2.0, 2.0, 2.0], Duration::from_millis(100));
+        let drumkit = Drumkit::new(acc, [2.0, 1.0, 1.0], Duration::from_millis(100));
 
         // Prepare initial score and state
         let score_index = 1usize;
@@ -139,7 +152,9 @@ impl<'a> App<'a> {
             button,
             joystick,
             drumkit,
+
             udp,
+            server,
 
             playback,
 
@@ -166,6 +181,7 @@ impl<'a> App<'a> {
         while self.update(pcm).do_continue() {}
 
         pcm.drain().expect("PCM drain must work.");
+        self.end();
     }
 
     fn update(&mut self, pcm: &'a PCM) -> UpdateStatus {
@@ -191,30 +207,58 @@ impl<'a> App<'a> {
         let mut notes: Vec<Instrument> = Vec::new();
 
         // Handle events over UDP
+        let mut reply: Option<(Arc<str>, SocketAddr)> = None;
+
         if let Some(ref udp) = self.udp {
             match udp.try_recv_command() {
                 Ok(Some((cmd, addr))) => {
-                    println!("UDP command received from {}: {:?}", addr, cmd);
-                    match cmd {
-                        command::Command::Mode(new_mode) => {
-                            self.set_score(ScoreType::from_index(new_mode as usize));
-                        }
-                        command::Command::Volume(volume) => {
-                            self.set_volume(volume);
-                        }
-                        command::Command::Tempo(bpm) => {
-                            self.set_tempo(bpm);
-                        }
-                        command::Command::Play(trigger) => {
-                            notes.push(trigger);
-                        }
-                        command::Command::Stop => {
-                            return UpdateStatus::Quit;
-                        }
-                    }
+                    reply = Some((
+                        if let Some(cmd) = cmd {
+                            match cmd {
+                                command::Command::Mode(mode) => {
+                                    if let Some(mode) = mode {
+                                        self.set_score(ScoreType::from_index(mode as usize));
+                                    }
+                                    format!("{}", self.score.t.to_index()).into()
+                                }
+                                command::Command::Volume(volume) => {
+                                    if let Some(volume) = volume {
+                                        self.set_volume(volume);
+                                    }
+                                    format!("{}", self.volume.as_percentage()).into()
+                                }
+                                command::Command::Tempo(bpm) => {
+                                    if let Some(bpm) = bpm {
+                                        self.set_tempo(bpm);
+                                    }
+                                    format!("{}", self.bpm.as_f64()).into()
+                                }
+                                command::Command::Play(trigger) => {
+                                    if let Some(trigger) = trigger {
+                                        notes.push(trigger);
+                                    }
+                                    Arc::from("OK")
+                                }
+                                command::Command::Stop => {
+                                    return UpdateStatus::Quit;
+                                }
+                            }
+                        } else {
+                            Arc::from("OK")
+                        },
+                        addr,
+                    ));
                 }
-                Ok(None) => {}
                 Err(e) => eprintln!("UDP receive error: {}", e),
+                Ok(None) => {}
+            }
+        }
+
+        if let Some((r, addr)) = reply
+            && let Some(udp) = &mut self.udp
+        {
+            if let Err(e) = udp.send_reply(r, addr) {
+                eprintln!("UDP send reply error: {}", e);
             }
         }
 
@@ -301,6 +345,10 @@ impl<'a> App<'a> {
 
     fn set_tempo(&mut self, bpm: Bpm) {
         self.bpm = bpm;
+    }
+
+    fn end(self) {
+        self.server.end();
     }
 }
 

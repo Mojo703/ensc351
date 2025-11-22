@@ -8,10 +8,10 @@ use crate::units::{Bpm, Volume};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
-    Mode(ScoreType),
-    Volume(Volume),
-    Tempo(Bpm),
-    Play(Instrument),
+    Mode(Option<ScoreType>),
+    Volume(Option<Volume>),
+    Tempo(Option<Bpm>),
+    Play(Option<Instrument>),
     Stop,
 }
 
@@ -26,10 +26,30 @@ pub enum Error {
 impl fmt::Display for Command {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Command::Mode(n) => write!(f, "mode {}", n.to_index()),
-            &Command::Volume(n) => write!(f, "volume {}", u32::from(n)),
-            &Command::Tempo(n) => write!(f, "tempo {}", u32::from(n)),
-            Command::Play(n) => write!(f, "play {}", n.to_index()),
+            Command::Mode(n) => write!(
+                f,
+                "mode {}",
+                n.map(|v| v.to_index().to_string())
+                    .unwrap_or("null".to_owned())
+            ),
+            &Command::Volume(n) => write!(
+                f,
+                "volume {}",
+                n.map(|v| u32::from(v).to_string())
+                    .unwrap_or("null".to_owned())
+            ),
+            &Command::Tempo(n) => write!(
+                f,
+                "tempo {}",
+                n.map(|v| u32::from(v).to_string())
+                    .unwrap_or("null".to_owned())
+            ),
+            Command::Play(n) => write!(
+                f,
+                "play {}",
+                n.map(|v| v.to_index().to_string())
+                    .unwrap_or("null".to_owned())
+            ),
             Command::Stop => write!(f, "stop"),
         }
     }
@@ -56,44 +76,30 @@ impl FromStr for Command {
         let cmd = parts.next().unwrap().to_lowercase();
 
         match cmd.as_str() {
-            "mode" => {
-                let num = parts.next().ok_or(Error::MissingArg("mode"))?;
-                let n = num
-                    .parse::<u32>()
-                    .map_err(|e| Error::InvalidArg("mode", e))?
-                    .try_into()
-                    .map_err(|_| Error::OutOfRangeArg("mode"))?;
-                Ok(Command::Mode(ScoreType::from_index(n)))
-            }
-            "volume" => {
-                let num = parts.next().ok_or(Error::MissingArg("volume"))?;
-                let n = num
-                    .parse::<u32>()
-                    .map_err(|e| Error::InvalidArg("volume", e))
-                    .and_then(|v| {
-                        Volume::try_from(v).map_err(|_| Error::OutOfRangeArg("volume"))
-                    })?;
-                Ok(Command::Volume(n))
-            }
-            "tempo" => {
-                let num = parts.next().ok_or(Error::MissingArg("tempo"))?;
-                let n = num
-                    .parse::<u32>()
-                    .map_err(|e| Error::InvalidArg("tempo", e))
-                    .and_then(|v| Bpm::try_from(v).map_err(|_| Error::OutOfRangeArg("tempo")))?;
-
-                Ok(Command::Tempo(n))
-            }
-            "play" => {
-                let num = parts.next().ok_or(Error::MissingArg("play"))?;
-                let n = num
-                    .parse::<u32>()
-                    .map_err(|e| Error::InvalidArg("play", e))?
-                    .try_into()
-                    .map_err(|_| Error::OutOfRangeArg("mode"))?;
-
-                Ok(Command::Play(Instrument::from_index(n)))
-            }
+            "mode" => Ok(Command::Mode(
+                parts
+                    .next()
+                    .and_then(|p| p.parse().ok())
+                    .map(|n| ScoreType::from_index(n)),
+            )),
+            "volume" => Ok(Command::Volume(
+                parts
+                    .next()
+                    .and_then(|p| p.parse::<u32>().ok())
+                    .and_then(|n| Volume::try_from(n).ok()),
+            )),
+            "tempo" => Ok(Command::Tempo(
+                parts
+                    .next()
+                    .and_then(|p| p.parse::<u32>().ok())
+                    .and_then(|n| Bpm::try_from(n).ok()),
+            )),
+            "play" => Ok(Command::Play(
+                parts
+                    .next()
+                    .and_then(|p| p.parse().ok())
+                    .map(|n| Instrument::from_index(n)),
+            )),
             "stop" => Ok(Command::Stop),
             other => Err(Error::Invalid(other.to_owned())),
         }

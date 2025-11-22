@@ -18,20 +18,22 @@ impl UdpConn {
     }
 
     /// Try to receive a command. Returns Ok(None) if no data currently.
-    pub fn try_recv_command(&self) -> std::io::Result<Option<(command::Command, SocketAddr)>> {
+    pub fn try_recv_command(
+        &self,
+    ) -> std::io::Result<Option<(Option<command::Command>, SocketAddr)>> {
         let mut buf = [0u8; 1024];
         match self.socket.recv_from(&mut buf) {
             Ok((n, addr)) => {
                 if n == 0 {
-                    return Ok(None);
+                    return Ok(Some((None, addr)));
                 }
                 if let Ok(s) = std::str::from_utf8(&buf[..n]) {
                     match s.trim().parse::<command::Command>() {
-                        Ok(cmd) => Ok(Some((cmd, addr))),
-                        Err(_) => Ok(None),
+                        Ok(cmd) => Ok(Some((Some(cmd), addr))),
+                        Err(_) => Ok(Some((None, addr))),
                     }
                 } else {
-                    Ok(None)
+                    Ok(Some((None, addr)))
                 }
             }
             Err(e) if e.kind() == ErrorKind::WouldBlock => Ok(None),

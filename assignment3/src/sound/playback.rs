@@ -17,7 +17,8 @@ pub struct Playback<'a, H> {
     io: pcm::IO<'a, i16>,
 
     channels: u32,
-    buffer_frame_size: usize,
+    transfer_size: usize,
+    buffer_size: usize,
 }
 
 impl<'a, H: Hash + Eq> Playback<'a, H> {
@@ -25,7 +26,8 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
         pcm: &'a PCM,
         channels: u32,
         rate: i32,
-        buffer_frame_size: usize,
+        transfer_size: usize,
+        buffer_size: usize,
     ) -> alsa::Result<Self> {
         let io = {
             use alsa::pcm::{Access, Format, HwParams};
@@ -47,7 +49,8 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
             playing,
             io,
             channels,
-            buffer_frame_size,
+            transfer_size,
+            buffer_size,
         })
     }
 
@@ -67,9 +70,16 @@ impl<'a, H: Hash + Eq> Playback<'a, H> {
     pub fn update(&mut self, pcm: &'a PCM, volume: Volume) -> alsa::Result<usize> {
         let status = pcm.status()?;
 
-        // Limit to buffer_frame_size for low latency
         let avail = status.get_avail() as usize;
-        let frames_to_write = self.buffer_frame_size.min(avail);
+        let delay = status.get_delay() as usize;
+
+        // Make sure not to fill past buffer_size
+        if delay > self.buffer_size + self.transfer_size {
+            return Ok(0);
+        }
+
+        // Determine how many samples need to be written.
+        let frames_to_write = self.transfer_size.min(avail);
         if frames_to_write == 0 {
             return Ok(0);
         }
