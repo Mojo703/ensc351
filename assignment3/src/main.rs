@@ -149,10 +149,10 @@ impl<'a> App<'a> {
             bpm,
 
             prev_joystick: None,
-            joystick_period: Duration::from_millis(100),
+            joystick_period: Duration::from_millis(10),
 
             last_log: None,
-            log_period: Duration::from_millis(750),
+            log_period: Duration::from_millis(1000),
 
             audio_sampler,
             accel_sampler,
