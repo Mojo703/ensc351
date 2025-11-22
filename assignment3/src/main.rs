@@ -175,7 +175,7 @@ impl<'a> App<'a> {
         if let Some(event) = self.joystick.get(&mut self.adc)
             && self
                 .prev_joystick
-                .is_some_and(|(time, prev)| prev != event || (now - time) > self.joystick_period)
+                .is_none_or(|(time, prev)| prev != event || (now - time) > self.joystick_period)
         {
             if let Some(delta) = match event {
                 Direction::Up => Some(0.05),
