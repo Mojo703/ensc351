@@ -306,7 +306,7 @@ impl<'a> App<'a> {
 
 fn main() {
     let pcm =
-        PCM::new("default", alsa::Direction::Playback, false).expect("PCM creation must work");
+        PCM::new("plughw:1,0", alsa::Direction::Playback, false).expect("PCM creation must work");
 
     let app = App::new(&pcm);
     app.run(&pcm);

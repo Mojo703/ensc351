@@ -40,7 +40,7 @@ impl From<Volume> for u32 {
 
 impl Display for Volume {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}%", self.0)
+        write!(f, "vol:{}%", self.0)
     }
 }
 
@@ -83,6 +83,6 @@ impl From<Bpm> for u32 {
 
 impl Display for Bpm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} bpm", self.0)
+        write!(f, "{}bpm", self.0)
     }
 }
